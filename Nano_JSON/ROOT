@@ -1,0 +1,6 @@
+session Nano_JSON = HOL +
+  options [document = pdf, document_output = "output"]
+  theories
+    Nano_JSON
+  document_files
+    "root.tex"
