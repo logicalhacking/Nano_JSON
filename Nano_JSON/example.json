@@ -8,4 +8,4 @@
       {"value": "Close", "onclick": "CloseDoc()"}
     ]
   }
-}}
+}, "flag":true, "number":42}
