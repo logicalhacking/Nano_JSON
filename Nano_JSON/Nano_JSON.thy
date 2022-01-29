@@ -1,5 +1,5 @@
 (***********************************************************************************
- * Copyright (c) 2019 Achim D. Brucker
+ * Copyright (c) 2019-2021 Achim D. Brucker
  *
  * All rights reserved.
  *
@@ -24,39 +24,21 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * SPDX-License-Identifier: BSD-2-Clause
- * Repository:   https://git.logicalhacking.com/adbrucker/isabelle-hacks/
- * Dependencies: None (assert.thy is used for testing the theory but it is 
- *                     not required for providing the functionality of this hack)
  ***********************************************************************************)
-
-(***********************************************************************************
-
-# Changelog
-
-This comment documents all notable changes to this file in a format inspired by 
-[Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres 
-to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
-- Improved representation of IEEE reals
-- Fixed serializer for definitions using equality from Pure
-
-## [1.0.0] - 2019-01-21
-- Initial release
-
-***********************************************************************************)
 
 section\<open>An Import/Export of JSON-like Formats for Isabelle/HOL\<close>
 theory
   "Nano_JSON"
 imports 
-  Complex_Main (* required for type real *) 
+  Main 
 keywords
       "import_JSON" :: thy_decl
   and "definition_JSON" :: thy_decl
   and "serialize_JSON" :: thy_decl
 
 begin
+
+
 text\<open>
   This theory implements an import/export format for Isabelle/HOL that is inspired by 
   JSON (JavaScript Object Notation). While the format defined in this theory is inspired 
@@ -64,9 +46,11 @@ text\<open>
   notably, 
 
   \<^item> only basic support for Unicode characters 
-  \<^item> numbers are mapped to @{type "real"}, which is not a faithful representation of IEEE floating 
-    point numbers, moreover, we extended the abstract syntax to allow for representing integers as 
-    @{type "int"}.
+  \<^item> numbers are mapped to a polymorphic type, which can, e.g., be instantiated with 
+    \<^item> @{term "real"} real, which is not a faithful representation of IEEE floating 
+          point numbers and requires Complex\_Main
+    \<^item> @{type "int"} we extended the abstract syntax to allow for representing integers as 
+    \<^item> @{type "string"}.
 
   Still, our JSON-like import/expert should work with most real-world JSON files, i.e., simplifying 
   the data exchange between Isabelle/HOL and tools that can read/write JSON. 
@@ -79,26 +63,21 @@ text\<open>
   for converting the ML representation to your own, domain-specific, HOL encoding. 
 \<close>
 
-section\<open>Defining a JSON-like Data Structure\<close>
+subsection\<open>Defining a JSON-like Data Structure\<close>
 
-text\<open>
-  In this section
-\<close>
-
-datatype number = INTEGER int | REAL real
-datatype json = OBJECT "(string * json) list"
-  | ARRAY "json list"
-  | NUMBER "number" 
-  | STRING "string"
-  | BOOL "bool"
-  | NULL
-
-text\<open>
-  Using the data type @{typ "json"}, we can now represent JSON encoded data easily in HOL:
-\<close>
+datatype ('string, 'number) json = 
+     OBJECT "('string * ('string, 'number) json) list"
+     | ARRAY "('string, 'number) json list"
+  | NUMBER "'number" 
+  | STRING "'string" 
+  | BOOL "bool" 
+  | NULL 
 
 subsection\<open>Example\<close>
-definition example01::json where 
+text\<open>
+  Using the data type @{typ "('string, 'number) json"}, we can now represent JSON encoded data 
+  easily in HOL, e.g., using the concrete instance @{typ "(string, int) json"}:\<close>
+definition example01::\<open>(string, int) json\<close> where 
 "example01 = 
   OBJECT [(''menu'', OBJECT [(''id'', STRING ''file''), (''value'', STRING ''File''),
           (''popup'', OBJECT [(''menuitem'', ARRAY
@@ -106,42 +85,44 @@ definition example01::json where
                         OBJECT [(''value'', STRING ''Open''), (''onclick'', STRING ''OpenDoc()'')],
                         OBJECT [(''value'', STRING ''Close''), (''onclick'', STRING ''CloseDoc()'')]
                        ])]
-           )])]"
+           )]),(''flag'', BOOL True), (''number'', NUMBER 42)
+]"
 
 text\<open>
-  The translation of the data type @{typ "json"} to ML is straight forward. In addition, we also 
+  The translation of the data type @{typ "('string, 'number) json"} to ML is straight forward with the exception 
+  that we do not need to distinguish different String representations.
+  In addition, we also 
   provide methods for converting JSON instances between the representation as Isabelle terms and 
   the representation as ML data structure.
 \<close>
 
 subsection\<open>ML Implementation\<close>
+
 ML\<open>
 signature NANO_JSON_TYPE = sig
-    datatype number = INTEGER of int | REAL of IEEEReal.decimal_approx
-  
+    datatype NUMBER = INTEGER of int | REAL of IEEEReal.decimal_approx
     datatype json = OBJECT of (string * json) list
                   | ARRAY of json list
-                  | NUMBER of number
+                  | NUMBER of NUMBER
                   | STRING of string
                   | BOOL of bool
                   | NULL
 
-    val term_of_json: json -> term
+    val term_of_json: typ -> typ -> json -> term
     val json_of_term: term -> json
 end
 structure Nano_Json_Type : NANO_JSON_TYPE = struct
-    datatype number = INTEGER of int | REAL of IEEEReal.decimal_approx
-  
+    datatype NUMBER = INTEGER of int | REAL of IEEEReal.decimal_approx
     datatype json = OBJECT of (string * json) list
                   | ARRAY of json list
-                  | NUMBER of number
+                  | NUMBER of NUMBER
                   | STRING of string
                   | BOOL of bool
                   | NULL
 
-    fun ieee_real_to_rat_approx rat = let
-           val _ = warning ("Conversion of (real) numbers is not JSON compliant.")
-           (* val rat = Real.toDecimal r *)
+
+    fun ieee_real_to_rat_approx (rat:IEEEReal.decimal_approx) = let
+           val _ = warning ("Conversion of real numbers is not JSON compliant.")
            fun pow (_, 0) = 1  
              | pow (x, n) = if n mod 2 = 0 then pow (x*x, n div 2)  
                                            else x * pow (x*x, n div 2); 
@@ -165,46 +146,127 @@ structure Nano_Json_Type : NANO_JSON_TYPE = struct
            | IEEEReal.NAN => error "Real is NaN, not yet supported."
         end
 
-    fun mk_divide t1 t2 = @{const Rings.divide_class.divide (real)} $ t1 $ t2
-    fun mk_real_num i = HOLogic.mk_number @{typ "Real.real"} i
-    fun mk_real (p,q) = if q = 1 then mk_real_num p else mk_divide (mk_real_num p) (mk_real_num q)
 
-    fun dest_real (@{const Rings.divide_class.divide (real)} $a$b) = 
+    fun mk_funT typ = Type("fun", typ)
+
+    fun divide_classC realT = Const(@{const_name Rings.divide_class.divide} , mk_funT [realT, mk_funT [realT, realT]])
+    fun mk_divide realT t1 t2 = (divide_classC realT) $ t1 $ t2
+    fun mk_real_num realT i = HOLogic.mk_number realT i
+    fun mk_real realT (p,q) = if q = 1 then mk_real_num realT p else mk_divide realT (mk_real_num realT p) (mk_real_num realT q)
+    fun term_of_real  r = (mk_real HOLogic.realT (ieee_real_to_rat_approx r))
+
+    fun dest_real (Const(@{const_name Rings.divide_class.divide} , _)$a$b) = 
                                       Real.toDecimal(Real.fromInt(HOLogic.dest_number a |> snd)
                                                        / Real.fromInt(HOLogic.dest_number b |> snd))
       | dest_real t = Real.toDecimal (Real.fromInt (HOLogic.dest_number t |> snd))
 
+    fun json_real_of_term r   = (NUMBER (REAL (dest_real r)))
+    fun mk_integer i = HOLogic.mk_number @{typ "int"} i
 
-    fun term_of_json (OBJECT l) = @{const "OBJECT"}
-                                  $(HOLogic.mk_list ((HOLogic.mk_prodT (HOLogic.stringT,@{typ "json"}))) 
-                                    (map (fn (s,j) => HOLogic.mk_tuple[HOLogic.mk_string s, term_of_json j]) l))
-      | term_of_json (ARRAY l)  = @{const "ARRAY"}
-                                  $(HOLogic.mk_list ( @{typ "json"}) (map term_of_json l))
-      | term_of_json (NUMBER (INTEGER i)) = @{const "NUMBER"}
-                                            $(@{const "INTEGER"}$(HOLogic.mk_number @{typ "int"} i)) 
-      | term_of_json (NUMBER (REAL r)) = @{const "NUMBER"}
-                                         $(@{const "REAL"}$(mk_real (ieee_real_to_rat_approx r)))
-      | term_of_json (STRING s) = @{const "STRING"}$(HOLogic.mk_string s)
-      | term_of_json (BOOL v) = @{const "BOOL"}$(if v then @{const "True"} else @{const "False"}) 
-      | term_of_json (NULL) = @{const "NULL"} 
 
-    fun json_of_term t = let 
-        fun dest_key_value [string, json] = (HOLogic.dest_string string, json_of json)
+
+    fun json_int_of_term i    =   (NUMBER (INTEGER (snd (HOLogic.dest_number i)))) 
+    fun json_string_of_term s = STRING (HOLogic.dest_string s)
+    fun json_string_literal_of_term s = STRING (HOLogic.dest_literal s)
+
+    fun mk_jsonT stringT numberT = Type(@{type_name "json"},[stringT, numberT])
+    fun mk_json_object stringT numberT = Const(@{const_name OBJECT}, mk_funT [
+        HOLogic.listT (HOLogic.mk_prodT (stringT, mk_jsonT stringT numberT)), mk_jsonT stringT numberT])
+
+    fun mk_str (@{typ "string"}) s         = HOLogic.mk_string s
+      | mk_str (@{typ "String.literal"}) s = HOLogic.mk_literal s
+      | mk_str _ _ = error "String type not supported"
+
+    fun mk_json_array stringT numberT = Const(@{const_name "ARRAY"}, mk_funT [HOLogic.listT (mk_jsonT stringT numberT), mk_jsonT stringT numberT])
+    fun mk_json_number stringT numberT = Const(@{const_name "NUMBER"}, mk_funT [numberT, mk_jsonT stringT numberT])
+    fun mk_json_string stringT numberT = Const(@{const_name "STRING"}, mk_funT [stringT, mk_jsonT stringT numberT])
+    fun mk_json_bool stringT numberT = Const(@{const_name "BOOL"}, mk_funT [@{typ bool}, mk_jsonT stringT numberT])
+    fun mk_json_null stringT numberT = Const(@{const_name "NULL"}, mk_jsonT stringT numberT)
+
+fun fix_tilde_sign s =  String.implode (map (fn #"~" => #"-" | c => c)
+                                     (String.explode s))
+
+
+    fun mk_number @{typ "int"} (INTEGER i)            = HOLogic.mk_number @{typ "int"} i
+      | mk_number @{typ "nat"} (INTEGER i)            = if i >= 0 then HOLogic.mk_number @{typ "nat"} i
+                                                        else error "mk_number: JSON contains negative number and target is nat."
+      | mk_number @{typ "int"} (REAL r)             = error (String.concat["mk_number: JSON contains real number and target is nat or int: ", 
+     IEEEReal.toString  r])
+      | mk_number (Type("Real.real",[])) (INTEGER i) = term_of_real (Real.toDecimal (Real.fromInt i))
+      | mk_number (Type("Real.real",[])) (REAL r)    = term_of_real  r
+
+      | mk_number @{typ "string"} n         = (case n of 
+                                                 (INTEGER i) => Int.toString i |> fix_tilde_sign |> HOLogic.mk_string
+                                               | (REAL r)    => IEEEReal.toString r |> fix_tilde_sign |> HOLogic.mk_string 
+                                                 ) 
+      | mk_number @{typ "String.literal"} n  = (case n of 
+                                                 (INTEGER i) => HOLogic.mk_literal (Int.toString i |> fix_tilde_sign)
+                                               | (REAL r)    => HOLogic.mk_literal (IEEEReal.toString r |> fix_tilde_sign) 
+                                                 )
+
+      | mk_number _ _ = error "mk_number: type not supported"
+
+    fun dest_funT (Type ("fun", [d,i])) = d
+
+
+    fun json_of_number t n = case dest_funT t of 
+                               (@{typ "int"}) => json_int_of_term n
+                             | (@{typ "nat"}) => json_int_of_term n
+                             | (Type("Real.real" , [])) => json_real_of_term n
+                             | (@{typ "string"}) => json_string_of_term n
+                             | (@{typ "String.literal"}) => json_string_literal_of_term n 
+                             | (Type(x,_))  => error (String.concat["ERROR  in json_of_number: ", x] )
+                             | _  => error "Unknown ERROR  in json_of_number."
+                          
+    fun json_of_string t s = 
+                            case dest_funT t of 
+                               (@{typ "string"}) => json_string_of_term s
+                             | (@{typ "String.literal"}) => json_string_literal_of_term s 
+                             | (Type(x,_))  => error (String.concat["ERROR  in json_of_string: ", x] )
+                             | _  => error "Unknown ERROR  in json_of_string."
+
+                                    
+    fun term_of_json strT numT (OBJECT l) = mk_json_object strT numT 
+                                  $(HOLogic.mk_list ((HOLogic.mk_prodT (strT, mk_jsonT strT numT )))  
+                                    (map (fn (s,j) => HOLogic.mk_tuple[mk_str strT s, term_of_json strT numT j]) l))
+      | term_of_json strT numT (ARRAY l)  = mk_json_array strT numT 
+                                  $(HOLogic.mk_list ( mk_jsonT strT numT) (map (term_of_json strT numT) l))
+      | term_of_json strT numT (NUMBER n) = (mk_json_number strT numT)$(mk_number numT n)  
+      | term_of_json strT numT (STRING s) = (mk_json_string strT numT)$(mk_str strT s)
+      | term_of_json strT numT (BOOL v)   = (mk_json_bool strT numT)$(if v then @{const "True"} else @{const "False"}) 
+      | term_of_json strT numT  (NULL)    = mk_json_null strT numT 
+
+
+fun string_of_typ (Type (s, _))     = s
+  | string_of_typ (TFree (s, _))    = s
+  | string_of_typ (TVar ((s,_), _)) = s;
+
+    fun json_of_term t = let
+        fun dest_key_value [string, json] = ((HOLogic.dest_string string, json_of json)
+                                           handle _ => (HOLogic.dest_literal string, json_of json))
           | dest_key_value _              = error "dest_key_value: not a key-value pair." 
-        and json_of (@{const "OBJECT"}  $ l) = OBJECT (map (dest_key_value o HOLogic.strip_tuple) (HOLogic.dest_list l))
-          | json_of (@{const "ARRAY"}  $ l) = ARRAY (map json_of (HOLogic.dest_list l))
-          | json_of (@{const "NUMBER"} $ @{const "INTEGER"} $ i) = (NUMBER (INTEGER (HOLogic.dest_numeral i)))
-          | json_of (@{const "NUMBER"} $ @{const "REAL"} $ r) = (NUMBER (REAL (dest_real r)))
-          | json_of (@{const "STRING"} $ s) = STRING (HOLogic.dest_string s)
-          | json_of (@{const "BOOL"} $ @{const "True"}) = BOOL true
-          | json_of (@{const "BOOL"} $ @{const "False"}) = BOOL true 
-          | json_of @{const "NULL"} = NULL
-          | json_of _ = error "Term not supported in json_of_term."
+        and json_of (Const(@{const_name "OBJECT"}, _) $ l) = OBJECT (map (dest_key_value o HOLogic.strip_tuple) (HOLogic.dest_list l))
+          | json_of (Const(@{const_name "ARRAY"}, _)  $ l) = ARRAY (map json_of (HOLogic.dest_list l))
+          | json_of (Const(@{const_name "NUMBER"}, numT) $ n ) = json_of_number numT n 
+          | json_of (Const(@{const_name "STRING"}, stringT) $ s) = json_of_string stringT s 
+          | json_of (Const(@{const_name "BOOL"}, _) $ @{const "True"}) = BOOL true
+          | json_of (Const(@{const_name "BOOL"}, _) $ @{const "False"}) = BOOL true 
+          | json_of (Const(@{const_name "NULL"}, _))  = NULL
+          | json_of t = error (String.concat ["Term not supported in json_of_term: ", string_of_typ (type_of t)])
+
+
+
     in
-        if type_of t = @{typ "json"} then json_of t 
-                                     else error "Term not of type json."
+        case type_of t of 
+          Type("Nano_JSON.json",[strT,numT]) => json_of t 
+          | _ => error (String.concat ["Term not of type json: ", string_of_typ (type_of t)])
     end
 end
+\<close>
+
+ML\<open>
+  val x = @{typ "(dummy, dummy) json"}
+  val y = Type("Nano_JSON.json",[dummyT,dummyT])
 \<close>
 
 section\<open>Parsing Nano JSON\<close>
@@ -235,6 +297,8 @@ signature NANO_JSON_LEXER = sig
     end
     val tokenize_string: string -> T.token list
 end
+\<close>
+ML\<open>
 
 structure Nano_Json_Lexer : NANO_JSON_LEXER = struct
     structure T = struct
@@ -377,13 +441,16 @@ end
 
 subsubsection\<open>Parser\<close>
 ML\<open>
+
 signature NANO_JSON_PARSER = sig
     val json_of_string : string -> Nano_Json_Type.json
-    val term_of_json_string : string -> term
+    val term_of_json_string : typ -> typ -> string -> term
+    val numT: theory -> string -> typ
+    val stringT: string -> typ
 end
 
-structure Nano_Json_Parser : NANO_JSON_PARSER = struct 
-    open Nano_Json_Type
+structure Nano_Json_Parser : NANO_JSON_PARSER  = struct 
+    open Nano_Json_Type 
     open Nano_Json_Lexer
 
     fun show [] = "end of input"
@@ -427,17 +494,20 @@ structure Nano_Json_Parser : NANO_JSON_PARSER = struct
                     
             fun okNumber (#"-" :: cs) = okPositive cs
               | okNumber cc = okPositive cc
+            fun getPositive (#"-" :: cs) = cs
+              | getPositive  cc = cc
+
         in
             if okNumber digits then let 
                 val number = String.implode digits
-            in 
-                if List.all (Char.isDigit) (String.explode number) 
-                then (case Int.fromString (String.implode digits) of
+            in  
+              if List.all (Char.isDigit) (getPositive digits)
+              then   (case Int.fromString (String.implode digits) of
                      NONE => parse_error "Number out of range"
-                   | SOME r => INTEGER r)
-                else (case IEEEReal.fromString (String.implode digits) of
+                   | SOME i =>  INTEGER i)
+              else   (case IEEEReal.fromString (String.implode digits) of
                      NONE => parse_error "Number out of range"
-                   | SOME r => REAL r)
+                   | SOME r => REAL r) 
             end
             else parse_error ("Invalid number \"" ^ (String.implode digits) ^ "\"")
         end
@@ -491,19 +561,52 @@ structure Nano_Json_Parser : NANO_JSON_PARSER = struct
     fun json_of_string str = case parseTokens (Nano_Json_Lexer.tokenize_string str) of
                             (value, []) =>  value
                           | (_, _) => parse_error "Extra data after input"
-    val term_of_json_string  = term_of_json o json_of_string
+    fun term_of_json_string strT numT = (term_of_json strT numT) o json_of_string
+
+    fun checkReal thy = SOME (Thm.global_ctyp_of thy  HOLogic.realT)
+                                                handle _ => NONE 
+
+
+ fun numT thy x = case x of 
+                 "int" => @{typ \<open>int\<close>} 
+               | "nat" => @{typ \<open>nat\<close>} 
+               | "real" =>  ( case checkReal thy of 
+                              SOME _ => HOLogic.realT
+                              |NONE => error ("Using 'real' requires the import of the theory 'Main_Complex' ('Real')."))
+               | "string" =>  @{typ \<open>string\<close>} 
+               | "String.literal" => @{typ \<open>String.literal\<close>}
+               | "" => ( case checkReal thy of 
+                              SOME _ => HOLogic.realT
+                              |NONE => @{typ \<open>int\<close>})
+               | _ => error (String.concat ["Only 'nat', 'int', 'real', 'string', and 'String.literal' are supported for numbers, got '",x,"'"]) 
+
+fun stringT x = case x of 
+                 "" => @{typ \<open>string\<close>}
+               | "string" =>  @{typ \<open>string\<close>} 
+               | "String.literal" => @{typ \<open>String.literal\<close>}
+               | _ => error (String.concat ["Only 'string' and 'String.literal' are supported for strings, got '",x,"'"]) 
+
+
 end
 \<close>
 
+ML\<open>
 
+Nano_Json_Parser.term_of_json_string (@{typ string}) (@{typ int}) "{\"name\": [true,false,\"test\"]}"
+\<close>
 subsection\<open>Isar Setup\<close>
 
 subsubsection\<open>The JSON Cartouche\<close>
 
+ML\<open>
+Scan.lift Args.cartouche_input
+\<close>
+
+
 syntax "_cartouche_nano_json" :: "cartouche_position \<Rightarrow> 'a"  ("JSON _")
 parse_translation\<open>
 let
-  fun translation args =
+  fun translation strT numT args =
     let
       fun err () = raise TERM ("Common._cartouche_nano_json", args)
       fun input s pos = Symbol_Pos.implode (Symbol_Pos.cartouche_content (Symbol_Pos.explode (s, pos)))
@@ -511,14 +614,31 @@ let
       case args of
         [(c as Const (@{syntax_const "_constrain"}, _)) $ Free (s, _) $ p] =>
           (case Term_Position.decode_position p of
-            SOME (pos, _) => c $ Nano_Json_Parser.term_of_json_string (input s pos) $ p
+            SOME (pos, _) => c $ Nano_Json_Parser.term_of_json_string strT numT (input s pos) $ p
           | NONE => err ())
       | _ => err ()
   end
 in
-  [(@{syntax_const "_cartouche_nano_json"}, K translation)]
+  [(@{syntax_const "_cartouche_nano_json"}, K (translation (Nano_Json_Parser.stringT "string") 
+               (Nano_Json_Parser.numT (Context.the_global_context()) "int" )))] (* TODO *)
 end
 \<close>  
+
+(* Antiqoutation with config *)
+
+lemma \<open>y == JSON \<open>{"name": true}\<close> \<close>
+  oops 
+
+
+
+lemma \<open>y == JSON\<open>{"name": [true,false,"test"]}\<close> \<close>
+  oops
+lemma \<open>y == JSON\<open>{"name": [true,false,"test"],
+                  "bool": true, 
+                  "number" : 1 }\<close> \<close>
+  oops
+
+ML\<open>open Code\<close>
 
 subsubsection\<open>Isar Top-Level Commands\<close>
 ML\<open>
@@ -526,11 +646,18 @@ structure Nano_Json_Parser_Isar = struct
     fun make_const_def (constname, trm) lthy = let
             val arg = ((Binding.name constname, NoSyn), ((Binding.name (constname^"_def"),[]), trm)) 
             val ((_, (_ , thm)), lthy') = Local_Theory.define arg lthy
+            val lthy'' = Code.declare_eqns [(thm, true)] lthy'
         in
-            (thm, lthy')
+            (thm, lthy'')
         end
-    fun def_json name json = snd o (make_const_def (name, Nano_Json_Parser.term_of_json_string json ))
-    fun def_json_file name filename lthy = let 
+    fun def_json strN numN name json lthy = let 
+            val thy = Proof_Context.theory_of lthy    
+            val strT = Nano_Json_Parser.stringT strN 
+            val numT = Nano_Json_Parser.numT thy numN
+    in 
+       (snd o (make_const_def (name, Nano_Json_Parser.term_of_json_string strT numT json ))) lthy
+    end 
+    fun def_json_file strN numN name filename lthy = let 
             val filename = Path.explode filename
             val thy = Proof_Context.theory_of lthy
             val master_dir = Resources.master_directory thy
@@ -539,28 +666,46 @@ structure Nano_Json_Parser_Isar = struct
                                else Path.append master_dir filename
             val json = File.read abs_filename
         in
-            def_json name json lthy
+            def_json strN numN name json lthy
         end
-    val jsonFileP = Parse.name -- Parse.name
-    val jsonP = Parse.name -- Parse.cartouche
+    val typeCfgParse  = Scan.optional (Args.parens (Parse.name -- Args.$$$ "," -- Parse.name)) (("",""),"");
+    val jsonFileP = typeCfgParse -- (Parse.name -- Parse.name)
+    val jsonP = typeCfgParse -- (Parse.name -- Parse.cartouche)
+
+
 end
 \<close>
 
 ML\<open>
 val _ = Outer_Syntax.local_theory @{command_keyword "definition_JSON"} "Define JSON." 
-        (Nano_Json_Parser_Isar.jsonP >>  (fn (name, json)  => Nano_Json_Parser_Isar.def_json name json));
+        (Nano_Json_Parser_Isar.jsonP >>  (fn (((stringN, _), numN), (name, json))  
+        => Nano_Json_Parser_Isar.def_json stringN numN name json));
 val _ = Outer_Syntax.local_theory @{command_keyword "import_JSON"} "Define JSON from file." 
-        (Nano_Json_Parser_Isar.jsonFileP >>  (fn (name, filename)  => Nano_Json_Parser_Isar.def_json_file name filename));
+        (Nano_Json_Parser_Isar.jsonFileP >>  (fn (((stringN,_),numN),(name, filename))  => 
+        Nano_Json_Parser_Isar.def_json_file stringN numN name filename));
 \<close>
+
+
+
+import_JSON  example03 "example.json"
+
+thm example03_def
+
+import_JSON (string,int) example04 "example.json"
+
+
+thm example03_def
+
+thm example03_def
+
 
 subsection\<open>Examples\<close>
 
 text\<open>
 Now we can use the JSON Cartouche for defining JSON-like data ``on-the-fly'', e.g.:
 \<close>
-lemma \<open>y == JSON\<open>{"name": [true,false,"test"]}\<close>\<close>
-  oops
-text\<open>
+
+  text\<open>
   Note that you need to escape quotes within the JSON Cartouche, if you are using 
   quotes as lemma delimiters, e.g.,:
 \<close>
@@ -580,8 +725,10 @@ lemma \<open> example01 == JSON \<open>{"menu": {
                                {"value": "Open", "onclick": "OpenDoc()"},
                                {"value": "Close", "onclick": "CloseDoc()"}
                               ] 
-                            }
-                           }}\<close>\<close>
+                            }},
+                           "flag": true,
+                           "number": 42
+                           }\<close>\<close>
   by(simp add: example01_def)
 
 text\<open>
@@ -600,9 +747,30 @@ definition_JSON example02 \<open>
       {"value": "Close", "onclick": "CloseDoc()"}
     ]
   }
-}}
+}, "flag":true, "number":42}
 \<close>
 thm example02_def
+
+
+definition_JSON (String.literal,int) example02' \<open>
+{"menu": {
+  "id": "file",
+  "value": "File",
+  "popup": {
+    "menuitem": [
+      {"value": "New", "onclick": "CreateNewDoc()"},
+      {"value": "Open", "onclick": "OpenDoc()"},
+      {"value": "Close", "onclick": "CloseDoc()"}
+    ]
+  }
+}, "flag":true, "number":42}
+\<close>
+thm example02'_def
+
+
+ML\<open> 
+@{term \<open>JSON\<open>{"number":31}\<close>\<close>}
+\<close>
 
 lemma "example01 = example02"
   by(simp add: example01_def example02_def)
@@ -611,8 +779,8 @@ text\<open>
   Moreover, we can import JSON from external files:
 \<close>
 
-import_JSON example03 "example.json"
-thm example03_def
+import_JSON example03' "example.json"
+thm example03'_def
 
 lemma "example01 = example03"
   by(simp add: example01_def example03_def)
@@ -634,7 +802,7 @@ signature NANO_JSON_SERIALIZER = sig
 end
 
 structure Nano_Json_Serializer : NANO_JSON_SERIALIZER = struct
-    open Nano_Json_Type
+     open Nano_Json_Type 
 
     fun escapeJsonString s =
         let fun bs c = "\\"^(Char.toString c)
@@ -740,7 +908,8 @@ subsection\<open>Examples\<close>
 text\<open>
   We can now serialize JSON and print the result in the output window of Isabelle/HOL:
 \<close>
-serialize_JSON example01
+serialize_JSON example02
+thm example01_def
 
 text\<open>
   Alternatively, we can export the serialized JSON into a file:
@@ -754,7 +923,7 @@ text\<open>
 \<close>
 ML\<open>
 structure Nano_Json = struct
-    open Nano_Json_Type
+    open Nano_Json_Type 
     open Nano_Json_Parser
     open Nano_Json_Serializer
 end
