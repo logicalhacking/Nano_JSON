@@ -1,56 +1,97 @@
-\documentclass[11pt,a4paper]{article}
+\documentclass[10pt,DIV16,a4paper,abstract=true,twoside=semi,openright]
+{scrreprt}
+\usepackage[USenglish]{babel}
+\usepackage[numbers, sort&compress]{natbib}
 \usepackage{isabelle,isabellesym}
+\usepackage{booktabs}
+\usepackage{paralist}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{xspace}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[]{mathtools}
+\usepackage[pdfpagelabels, pageanchor=false, plainpages=false]{hyperref}
 
-% further packages required for unusual symbols (see also
-% isabellesym.sty), use only when needed
+\isabellestyle{default}
+\setcounter{tocdepth}{1}
+\newcommand{\ie}{i.\,e.\xspace}
+\newcommand{\eg}{e.\,g.\xspace}
+\newcommand{\thy}{\isabellecontext}
+\renewcommand{\isamarkupsection}[1]{%
+  \begingroup% 
+  \def\isacharunderscore{\textunderscore}%
+  \section{#1 (\thy)}%
+  \endgroup% 
+}
 
-%\usepackage{amssymb}
-  %for \<leadsto>, \<box>, \<diamond>, \<sqsupset>, \<mho>, \<Join>,
-  %\<lhd>, \<lesssim>, \<greatersim>, \<lessapprox>, \<greaterapprox>,
-  %\<triangleq>, \<yen>, \<lozenge>
-
-%\usepackage{eurosym}
-  %for \<euro>
-
-%\usepackage[only,bigsqcap]{stmaryrd}
-  %for \<Sqinter>
-
-%\usepackage{eufrak}
-  %for \<AA> ... \<ZZ>, \<aa> ... \<zz> (also included in amssymb)
-
-%\usepackage{textcomp}
-  %for \<onequarter>, \<onehalf>, \<threequarters>, \<degree>, \<cent>,
-  %\<currency>
-
-% this should be the last package used
-\usepackage{pdfsetup}
-
-% urls in roman style, theory text in math-similar italics
-\urlstyle{rm}
-\isabellestyle{it}
-
-% for uniform font size
-%\renewcommand{\isastyle}{\isastyleminor}
-
+\title{Nano JSON}
+\subtitle{Working with JSON formatted data in Isabelle/HOL} 
+\author{Achim~D.~Brucker}%
+\publishers{
+  Department of Computer Science, University of Exeter, Exeter, UK\texorpdfstring{\\}{, }
+  \texttt{a.brucker@exeter.ac.uk}
+}
 
 \begin{document}
+  \maketitle
+  \begin{abstract}
+    \begin{quote}
+      JSON \ldots
 
-\title{Nano-JSON}
-\author{Achim D. Brucker}
-\maketitle
-
+      \bigskip
+      \noindent{\textbf{Keywords:} JSON, JavaScript Object Notation} 
+    \end{quote}
+  \end{abstract}
 \tableofcontents
 
-% sane default for proof documents
-\parindent 0pt\parskip 0.5ex
+
+\chapter{Introduction}
+
+% https://www.ecma-international.org/publications-and-standards/standards/ecma-404/
+% ECMA-404
+% The JSON data interchange syntax
+% 2nd edition, December 2017 
+
+
+\cite{ecma:json:2017,ietf:rfc8259-json:2017}
+
+
+and identical 7159 and in 2017 RFC 8259 as updates to RFC
+        4627. The JSON syntax specified by this specification and by RFC 8259 are int
+
+JSON (JavaScript Object Notation) is a lightweight data-interchange
+format. It is easy for humans to read and write. It is easy for
+machines to parse and generate. It is based on a subset of the
+JavaScript Programming Language Standard ECMA-262 3rd Edition -
+December 1999. JSON is a text format that is completely language
+independent but uses conventions that are familiar to programmers of
+the C-family of languages, including C, C++, C\#, Java, JavaScript,
+Perl, Python, and many others. These properties make JSON an ideal
+data-interchange language.
+
+JSON is built on two structures:
+\begin{itemize}
+\item A collection of name/value pairs. In various languages, this is
+  realized as an object, record, struct, dictionary, hash table, keyed
+  list, or associative array.
+\item An ordered list of values. In most languages, this is realized
+  as an array, vector, list, or sequence.
+\end{itemize}
+
+These are universal data structures. Virtually all modern programming
+languages support them in one form or another. It makes sense that a
+data format that is interchangeable with programming languages also be
+based on these structures.
+
 
 % generated text of all theories
 \input{session}
 
-% optional bibliography
-%\bibliographystyle{abbrv}
-%\bibliography{root}
-
+{\small
+  \bibliographystyle{abbrvnat}
+  \bibliography{root}
+}
 \end{document}
 
 %%% Local Variables:
