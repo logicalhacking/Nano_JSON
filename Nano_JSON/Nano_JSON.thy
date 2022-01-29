@@ -250,7 +250,7 @@ fun string_of_typ (Type (s, _))     = s
           | json_of (Const(@{const_name "NUMBER"}, numT) $ n ) = json_of_number numT n 
           | json_of (Const(@{const_name "STRING"}, stringT) $ s) = json_of_string stringT s 
           | json_of (Const(@{const_name "BOOL"}, _) $ @{const "True"}) = BOOL true
-          | json_of (Const(@{const_name "BOOL"}, _) $ @{const "False"}) = BOOL true 
+          | json_of (Const(@{const_name "BOOL"}, _) $ @{const "False"}) = BOOL false
           | json_of (Const(@{const_name "NULL"}, _))  = NULL
           | json_of t = error (String.concat ["Term not supported in json_of_term: ", string_of_typ (type_of t)])
 
