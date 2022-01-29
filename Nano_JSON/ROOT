@@ -2,5 +2,10 @@ session Nano_JSON = HOL +
   options [document = pdf, document_output = "output"]
   theories
     Nano_JSON
+    Nano_JSON_Query
+    Nano_JSON_Main
+    Example
+    Example_Real 
   document_files
     "root.tex"
+    "root.bib"
