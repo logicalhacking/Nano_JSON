@@ -869,10 +869,8 @@ end
 subsection\<open>Isar Setup\<close>
 ML\<open>
 structure Nano_Json_Serialize_Isar = struct
-  fun export_json ctxt json_const filename =
+  fun export_json thy json_const filename =
     let
-        val thy = ctxt (* Proof_Context.theory_of ctxt *)
-        val master_dir = Resources.master_directory thy
         val term = Thm.concl_of (Global_Theory.get_thm thy (json_const^"_def"))
          fun export binding content thy =
   let
@@ -882,22 +880,17 @@ structure Nano_Json_Serialize_Isar = struct
         val json_term = case term of
                               Const (@{const_name "Pure.eq"}, _) $ _ $ json_term => json_term
                            |  _ $ (_ $ json_term) => json_term
-                           | _ => error ("Term structure not supported: ")
-                                       (*  ^(Sledgehammer_Util.hackish_string_of_term ctxt term)) *)
+                           | _ => error ("Term structure not supported.")
         val json_string  = Nano_Json_Serializer.serialize_term_pretty json_term 
     in
         case filename of 
              SOME filename => let 
                                 val filename = Path.explode (filename^".json")
-                                val abs_filename = if (Path.is_absolute filename)
-                                                   then filename 
-                                                   else Path.append master_dir filename
-                                val file = {path = filename, content = json_string, pos=Position.none}
+                                val thy' = export (Path.binding (Path.append (Path.explode "json") 
+                                                   filename,Position.none)) json_string thy
+                                val _ =  writeln (Export.message thy (Path.basic "json"))
                               in
-                                 writeln (Export.message thy (Path.basic "json"));
-                                export (Path.binding (Path.append (Path.explode "json") filename,Position.none))  json_string thy
-                                (* File.write (abs_filename) json_string
-                                   handle (IO.Io{name=name,...}) => warning ("Could not write \""^name^"\".") *)
+                                 thy'                                 
                               end
            | NONE =>  (tracing json_string; thy) 
     end
