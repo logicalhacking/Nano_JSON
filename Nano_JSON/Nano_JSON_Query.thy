@@ -1,5 +1,5 @@
 (***********************************************************************************
- * Copyright (c) 2019-2021 Achim D. Brucker
+ * Copyright (c) 2019-2022 Achim D. Brucker
  *
  * All rights reserved.
  *
@@ -75,20 +75,31 @@ definition_JSON  example_literal_literal \<open>
 \<close>
 
 
-
-fun jq_filter :: \<open>'a \<Rightarrow> ('a, 'b) json \<Rightarrow> ('a list \<times> ('a, 'b) json) list\<close> 
+fun nj_filter':: \<open>'a \<Rightarrow> 'a list \<times> ('a, 'b) json \<Rightarrow> ('a list \<times> ('a, 'b) json) list\<close>
   where
-  \<open>jq_filter key (OBJECT json) =( (map (\<lambda> (k,v) \<Rightarrow> ([k],v)) (filter (\<lambda> (k,d) \<Rightarrow> key = k) json) )
-                        @ (List.concat (map (jq_filter key) (map snd json)))
-                         )\<close>
-| \<open>jq_filter key (ARRAY json) = (List.concat (map (jq_filter key) (json)))\<close>
-| \<open>jq_filter _ (NUMBER _) = []\<close>
-| \<open>jq_filter _ (STRING _) = []\<close>
-| \<open>jq_filter _ (BOOL _) = []\<close>
-| \<open>jq_filter _ (NULL) = []\<close>
+    \<open>nj_filter' key (prfx, OBJECT json) = ((map (\<lambda> (k,v). (prfx@[k],v)) (filter (\<lambda> (k,_). key = k) json) )
+                        @ (List.concat (map (nj_filter' key) (map (\<lambda> (k,v). (prfx,v)) json)))
+                         )\<close> 
+  | \<open>nj_filter' key (prfx, ARRAY json) = (List.concat (map (nj_filter' key) (map (\<lambda> v. (prfx,v)) json)))\<close> 
+  | \<open>nj_filter' _ (_, NUMBER _) = []\<close>
+  | \<open>nj_filter' _ (_, STRING _) = []\<close>
+  | \<open>nj_filter' _ (_, BOOL _) = []\<close>
+  | \<open>nj_filter' _ (_, NULL) = []\<close>
 
- 
-value \<open>jq_filter ''onclick'' example_literal_literal\<close>
+definition nj_filter::\<open>'a \<Rightarrow> ('a, 'b) json \<Rightarrow> ('a list \<times> ('a, 'b) json) list\<close> where
+          \<open>nj_filter key json = nj_filter' key ([],json)\<close>
 
+fun nj_update :: \<open>(('a, 'b) json \<Rightarrow> ('a, 'b) json) \<Rightarrow> 'a \<Rightarrow> ('a, 'b) json \<Rightarrow> ('a, 'b) json\<close>
+  where 
+    \<open>nj_update f key (OBJECT kjson) =  OBJECT (map (\<lambda> (k,json). if k = key 
+                                                                then (k, f json) 
+                                                                else (k, nj_update f key json)) kjson)\<close> 
+  | \<open>nj_update f key (ARRAY json) = ARRAY (map (nj_update f key) json)\<close>
+  | \<open>nj_update _ _ (NUMBER n) = NUMBER n\<close>
+  | \<open>nj_update _ _ (STRING s) = STRING s\<close>
+  | \<open>nj_update _ _ (BOOL b) = BOOL b\<close>
+  | \<open>nj_update _ _ NULL = NULL\<close>
+
+value \<open>nj_filter ''onclick'' example_literal_literal\<close>
 
 end
