@@ -871,36 +871,43 @@ ML\<open>
 structure Nano_Json_Serialize_Isar = struct
   fun export_json ctxt json_const filename =
     let
-        val thy = Proof_Context.theory_of ctxt
+        val thy = ctxt (* Proof_Context.theory_of ctxt *)
         val master_dir = Resources.master_directory thy
         val term = Thm.concl_of (Global_Theory.get_thm thy (json_const^"_def"))
+         fun export binding content thy =
+  let
+    val thy' = thy |> Generated_Files.add_files (binding, content);
+    val _ = Export.export thy' binding [XML.Text content];
+  in thy' end;
         val json_term = case term of
                               Const (@{const_name "Pure.eq"}, _) $ _ $ json_term => json_term
                            |  _ $ (_ $ json_term) => json_term
-                           | _ => error ("Term structure not supported: "
-                                         ^(Sledgehammer_Util.hackish_string_of_term ctxt term))
+                           | _ => error ("Term structure not supported: ")
+                                       (*  ^(Sledgehammer_Util.hackish_string_of_term ctxt term)) *)
         val json_string  = Nano_Json_Serializer.serialize_term_pretty json_term 
     in
         case filename of 
              SOME filename => let 
-                                val filename = Path.explode filename
+                                val filename = Path.explode (filename^".json")
                                 val abs_filename = if (Path.is_absolute filename)
                                                    then filename 
                                                    else Path.append master_dir filename
+                                val file = {path = filename, content = json_string, pos=Position.none}
                               in
-                                File.write (abs_filename) json_string
-                                handle (IO.Io{name=name,...}) => warning ("Could not write \""^name^"\".") 
+                                 writeln (Export.message thy (Path.basic "json"));
+                                export (Path.binding (Path.append (Path.explode "json") filename,Position.none))  json_string thy
+                                (* File.write (abs_filename) json_string
+                                   handle (IO.Io{name=name,...}) => warning ("Could not write \""^name^"\".") *)
                               end
-           | NONE =>  tracing json_string 
+           | NONE =>  (tracing json_string; thy) 
     end
 end
 \<close>
 
-
 ML\<open>
   Outer_Syntax.command ("serialize_JSON", Position.none) "export JSON data to an external file"
   (Parse.name -- Scan.option Parse.name  >> (fn (const_name,filename) =>
-    (Toplevel.keep (fn state => Nano_Json_Serialize_Isar.export_json (Toplevel.context_of state) const_name filename))));
+    (Toplevel.theory (fn state => Nano_Json_Serialize_Isar.export_json state const_name filename))));
 \<close>
 
 
