@@ -108,6 +108,7 @@ signature NANO_JSON_TYPE = sig
                   | BOOL of bool
                   | NULL
 
+    val term_of_real: IEEEReal.decimal_approx -> term 
     val term_of_json: typ -> typ -> json -> term
     val json_of_term: term -> json
 end
@@ -183,7 +184,7 @@ structure Nano_Json_Type : NANO_JSON_TYPE = struct
     fun mk_json_bool stringT numberT = Const(@{const_name "BOOL"}, mk_funT [@{typ bool}, mk_jsonT stringT numberT])
     fun mk_json_null stringT numberT = Const(@{const_name "NULL"}, mk_jsonT stringT numberT)
 
-fun fix_tilde_sign s =  String.implode (map (fn #"~" => #"-" | c => c)
+    fun fix_tilde_sign s =  String.implode (map (fn #"~" => #"-" | c => c)
                                      (String.explode s))
 
 
@@ -638,7 +639,6 @@ lemma \<open>y == JSON\<open>{"name": [true,false,"test"],
                   "number" : 1 }\<close> \<close>
   oops
 
-ML\<open>open Code\<close>
 
 subsubsection\<open>Isar Top-Level Commands\<close>
 ML\<open>
