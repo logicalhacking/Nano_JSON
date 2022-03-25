@@ -9,5 +9,5 @@ It may also contain additional tools and script that are useful for preparing a 
 
 ### Latest Build
 
-* [browser_info](https://artifacts.logicalhacking.com/ci/afp-mirror/Nano_JSON/main/latest/browser_info/AFP/Nano_JSON-devel/)
+* [browser_info](https://artifacts.logicalhacking.com/ci/afp-mirror/Nano_JSON/main/latest/browser_info/AFP/Nano_JSON/)
 * [aux files](https://artifacts.logicalhacking.com/ci/afp-mirror/Nano_JSON/main/latest/)
