@@ -1,4 +1,7 @@
-session Nano_JSON (AFP) = HOL +
+chapter AFP
+
+session "Nano_JSON" (AFP) = HOL +
+  description "Nano JSON"
   options [document = pdf, document_output = "output"]
   theories
     Nano_JSON
