@@ -123,7 +123,7 @@ structure Nano_Json_Type : NANO_JSON_TYPE = struct
 
 
     fun ieee_real_to_rat_approx (rat:IEEEReal.decimal_approx) = let
-           val _ = warning ("Conversion of real numbers is not JSON compliant.")
+           (* val _ = warning ("Conversion of real numbers is not JSON compliant.") *)
            fun pow (_, 0) = 1  
              | pow (x, n) = if n mod 2 = 0 then pow (x*x, n div 2)  
                                            else x * pow (x*x, n div 2); 
@@ -643,19 +643,21 @@ lemma \<open>y == JSON\<open>{"name": [true,false,"test"],
 subsubsection\<open>Isar Top-Level Commands\<close>
 ML\<open>
 structure Nano_Json_Parser_Isar = struct
-    fun make_const_def (constname, trm) lthy = let
-            val arg = ((Binding.name constname, NoSyn), ((Binding.name (constname^"_def"),[]), trm)) 
-            val ((_, (_ , thm)), lthy') = Local_Theory.define arg lthy
-            val lthy'' = Code.declare_eqns [(thm, true)] lthy'
+    fun make_const_def (binding, trm) lthy = let
+            val lthy' =  snd ( Local_Theory.begin_nested lthy )
+            val arg = ((binding, NoSyn), ((Thm.def_binding binding,@{attributes [code]}), trm)) 
+            val ((_, (_ , thm)), lthy'') = Local_Theory.define arg lthy'
         in
-            (thm, lthy'')
+            (thm, Local_Theory.end_nested lthy'')
         end
+
+
     fun def_json strN numN name json lthy = let 
             val thy = Proof_Context.theory_of lthy    
             val strT = Nano_Json_Parser.stringT strN 
             val numT = Nano_Json_Parser.numT thy numN
     in 
-       (snd o (make_const_def (name, Nano_Json_Parser.term_of_json_string strT numT json ))) lthy
+       (snd o (make_const_def (Binding.name name, Nano_Json_Parser.term_of_json_string strT numT json ))) lthy
     end 
     fun def_json_file strN numN name filename lthy = let 
             val filename = Path.explode filename
