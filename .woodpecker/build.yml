@@ -21,3 +21,9 @@ pipeline:
       key: 
         from_secret: artifacts_ssh
       user: artifacts
+  notify:
+    image: drillster/drone-email
+    host: smtp.0x5f.org
+    from: ci-no-reply@logicalhacking.com
+    when:
+      status: [ changed, failure ]
