@@ -1,5 +1,5 @@
 (***********************************************************************************
- * Copyright (c) 2019-2021 Achim D. Brucker
+ * Copyright (c) 2019-2022 Achim D. Brucker
  *
  * All rights reserved.
  *
@@ -97,6 +97,7 @@ text\<open>
 \<close>
 
 subsection\<open>ML Implementation\<close>
+
 
 ML\<open>
 signature NANO_JSON_TYPE = sig
@@ -659,16 +660,15 @@ structure Nano_Json_Parser_Isar = struct
     in 
        (snd o (make_const_def (Binding.name name, Nano_Json_Parser.term_of_json_string strT numT json ))) lthy
     end 
-    fun def_json_file strN numN name filename lthy = let 
-            val filename = Path.explode filename
-            val thy = Proof_Context.theory_of lthy
-            val master_dir = Resources.master_directory thy
-            val abs_filename = if (Path.is_absolute filename)
-                               then filename
-                               else Path.append master_dir filename
+    fun def_json_file strN numN name (filename:string) (lthy:local_theory) = let 
+            val abs_filename = Resources.check_file lthy NONE (Syntax.read_input filename) 
             val json = File.read abs_filename
+            val chksum = SHA1.digest json
+            val provide = Resources.provide (abs_filename, chksum)
+            val lthy' = Local_Theory.background_theory provide lthy
+                        handle (ERROR _) => lthy
         in
-            def_json strN numN name json lthy
+            def_json strN numN name json lthy'
         end
     val typeCfgParse  = Scan.optional (Args.parens (Parse.name -- Args.$$$ "," -- Parse.name)) (("",""),"");
     val jsonFileP = typeCfgParse -- (Parse.name -- Parse.name)
@@ -697,8 +697,7 @@ import_JSON (string,int) example04 "example.json"
 
 
 thm example03_def
-
-thm example03_def
+thm example04_def
 
 
 subsection\<open>Examples\<close>
