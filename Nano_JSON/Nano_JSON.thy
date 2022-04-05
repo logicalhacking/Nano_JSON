@@ -32,9 +32,10 @@ theory
 imports 
   Main 
 keywords
-      "import_JSON" :: thy_decl
-  and "definition_JSON" :: thy_decl
-  and "serialize_JSON" :: thy_decl
+      "JSON_file" :: thy_load
+  and "JSON" :: thy_decl
+  and "JSON_export" :: thy_decl
+  and "defining"::quasi_command
 
 begin
 
@@ -442,13 +443,40 @@ end
 \<close>
 
 subsubsection\<open>Parser\<close>
+
+ML\<open>
+  val json_num_type = let
+    val (json_num_type_config, json_num_type_setup) =
+      Attrib.config_string (Binding.name "JSON_num_type") (K "int")
+  in
+    Context.>>(Context.map_theory json_num_type_setup);
+    json_num_type_config
+  end
+  val json_string_type = let
+    val (json_string_type_config, json_string_type_setup) =
+      Attrib.config_string (Binding.name "JSON_string_type") (K "string")
+  in
+    Context.>>(Context.map_theory json_string_type_setup);
+    json_string_type_config
+  end
+  val json_verbose = let
+    val (json_string_type_config, json_string_type_setup) =
+      Attrib.config_bool (Binding.name "JSON_verbose") (K false)
+  in
+    Context.>>(Context.map_theory json_string_type_setup);
+    json_string_type_config
+  end
+
+
+\<close>
+
 ML\<open>
 
 signature NANO_JSON_PARSER = sig
     val json_of_string : string -> Nano_Json_Type.json
     val term_of_json_string : typ -> typ -> string -> term
-    val numT: theory -> string -> typ
-    val stringT: string -> typ
+    val numT: theory -> typ
+    val stringT: theory -> typ
 end
 
 structure Nano_Json_Parser : NANO_JSON_PARSER  = struct 
@@ -569,7 +597,7 @@ structure Nano_Json_Parser : NANO_JSON_PARSER  = struct
                                                 handle _ => NONE 
 
 
- fun numT thy x = case x of 
+ fun numT thy = case Config.get_global thy json_num_type of 
                  "int" => @{typ \<open>int\<close>} 
                | "nat" => @{typ \<open>nat\<close>} 
                | "real" =>  ( case checkReal thy of 
@@ -580,13 +608,15 @@ structure Nano_Json_Parser : NANO_JSON_PARSER  = struct
                | "" => ( case checkReal thy of 
                               SOME _ => HOLogic.realT
                               |NONE => @{typ \<open>int\<close>})
-               | _ => error (String.concat ["Only 'nat', 'int', 'real', 'string', and 'String.literal' are supported for numbers, got '",x,"'"]) 
+               | _ => error (String.concat ["Only 'nat', 'int', 'real', 'string', and 'String.literal' are supported for numbers, got '",
+                                            Config.get_global thy json_num_type, "'"]) 
 
-fun stringT x = case x of 
+fun stringT thy = case Config.get_global thy json_string_type of 
                  "" => @{typ \<open>string\<close>}
                | "string" =>  @{typ \<open>string\<close>} 
                | "String.literal" => @{typ \<open>String.literal\<close>}
-               | _ => error (String.concat ["Only 'string' and 'String.literal' are supported for strings, got '",x,"'"]) 
+               | _ => error (String.concat ["Only 'string' and 'String.literal' are supported for strings, got '",
+                                            Config.get_global thy json_string_type, "'"]) 
 
 
 end
@@ -606,10 +636,12 @@ Scan.lift Args.cartouche_input
 
 
 syntax "_cartouche_nano_json" :: "cartouche_position \<Rightarrow> 'a"  ("JSON _")
-parse_translation\<open>
+parse_translation\<open> 
 let
-  fun translation strT numT args =
-    let
+  fun translation u args = let
+      val thy = Context.the_global_context u
+      val strT = Nano_Json_Parser.stringT thy
+      val numT = Nano_Json_Parser.numT thy
       fun err () = raise TERM ("Common._cartouche_nano_json", args)
       fun input s pos = Symbol_Pos.implode (Symbol_Pos.cartouche_content (Symbol_Pos.explode (s, pos)))
     in
@@ -621,17 +653,20 @@ let
       | _ => err ()
   end
 in
-  [(@{syntax_const "_cartouche_nano_json"}, K (translation (Nano_Json_Parser.stringT "string") 
-               (Nano_Json_Parser.numT (Context.the_global_context()) "int" )))] (* TODO *)
+  [(@{syntax_const "_cartouche_nano_json"}, K (translation ()))] 
 end
 \<close>  
 
 (* Antiqoutation with config *)
 
+declare [[JSON_string_type = string]]
+lemma \<open>y == JSON \<open>{"name": true}\<close> \<close>
+  oops
+
+declare [[JSON_string_type = String.literal]]
 lemma \<open>y == JSON \<open>{"name": true}\<close> \<close>
   oops 
-
-
+declare [[JSON_string_type = string]]
 
 lemma \<open>y == JSON\<open>{"name": [true,false,"test"]}\<close> \<close>
   oops
@@ -653,52 +688,55 @@ structure Nano_Json_Parser_Isar = struct
         end
 
 
-    fun def_json strN numN name json lthy = let 
+    fun def_json name json lthy = let 
             val thy = Proof_Context.theory_of lthy    
-            val strT = Nano_Json_Parser.stringT strN 
-            val numT = Nano_Json_Parser.numT thy numN
+            val strT = Nano_Json_Parser.stringT thy  
+            val numT = Nano_Json_Parser.numT thy 
     in 
        (snd o (make_const_def (Binding.name name, Nano_Json_Parser.term_of_json_string strT numT json ))) lthy
     end 
-    fun def_json_file strN numN name (filename:string) (lthy:local_theory) = let 
-            val abs_filename = Resources.check_file lthy NONE (Syntax.read_input filename) 
-            val json = File.read abs_filename
-            val chksum = SHA1.digest json
-            val provide = Resources.provide (abs_filename, chksum)
-            val lthy' = Local_Theory.background_theory provide lthy
-                        handle (ERROR _) => lthy
-        in
-            def_json strN numN name json lthy'
-        end
-    val typeCfgParse  = Scan.optional (Args.parens (Parse.name -- Args.$$$ "," -- Parse.name)) (("",""),"");
-    val jsonFileP = typeCfgParse -- (Parse.name -- Parse.name)
-    val jsonP = typeCfgParse -- (Parse.name -- Parse.cartouche)
 
+    val typeCfgParse  = Scan.optional (Args.parens (Parse.name -- Args.$$$ "," -- Parse.name)) (("",""),"");
+    val jsonP = (Parse.name -- Parse.cartouche)
 
 end
 \<close>
 
+
 ML\<open>
-val _ = Outer_Syntax.local_theory @{command_keyword "definition_JSON"} "Define JSON." 
-        (Nano_Json_Parser_Isar.jsonP >>  (fn (((stringN, _), numN), (name, json))  
-        => Nano_Json_Parser_Isar.def_json stringN numN name json));
-val _ = Outer_Syntax.local_theory @{command_keyword "import_JSON"} "Define JSON from file." 
-        (Nano_Json_Parser_Isar.jsonFileP >>  (fn (((stringN,_),numN),(name, filename))  => 
-        Nano_Json_Parser_Isar.def_json_file stringN numN name filename));
+val _ = Outer_Syntax.local_theory @{command_keyword "JSON"} "Define JSON." 
+        ((Parse.cartouche -- \<^keyword>\<open>defining\<close> -- Parse.name) >>  (fn ((json, _), name)  
+        => Nano_Json_Parser_Isar.def_json name json))
+
+val _ = Outer_Syntax.command \<^command_keyword>\<open>JSON_file\<close> "Import JSON and bind it to a definition."
+        ((Resources.parse_file -- \<^keyword>\<open>defining\<close> -- Parse.name) >> (fn ((get_file,_),name) =>
+          Toplevel.theory (fn thy =>
+          let
+             val ({lines, ...}:Token.file) = get_file thy;
+             val thy'' = Named_Target.theory_map (Nano_Json_Parser_Isar.def_json name (String.concat lines)) thy
+          in thy'' end)))
 \<close>
+       
+JSON_file "example.json" defining example03
 
+JSON \<open>
+{"menu": {
+  "id": "file",
+  "value": "File",
+  "popup": {
+    "menuitem": [
+      {"value": "New", "onclick": "CreateNewDoc()"},
+      {"value": "Open", "onclick": "OpenDoc()"},
+      {"value": "Close", "onclick": "CloseDoc()"}
+    ]
+  }
+}, "flag":true, "number":42}
+\<close> defining example04
 
+thm example03_def example04_def
 
-import_JSON  example03 "example.json"
-
-thm example03_def
-
-import_JSON (string,int) example04 "example.json"
-
-
-thm example03_def
-thm example04_def
-
+lemma "example03 = example04"
+  by (simp add:example03_def example04_def)
 
 subsection\<open>Examples\<close>
 
@@ -737,7 +775,7 @@ text\<open>
   JSON-like data: 
 \<close>
 
-definition_JSON example02 \<open>
+JSON \<open>
 {"menu": {
   "id": "file",
   "value": "File",
@@ -749,11 +787,13 @@ definition_JSON example02 \<open>
     ]
   }
 }, "flag":true, "number":42}
-\<close>
+\<close> defining example02
+
+
 thm example02_def
 
-
-definition_JSON (String.literal,int) example02' \<open>
+declare [[JSON_string_type = String.literal]]
+JSON \<open>
 {"menu": {
   "id": "file",
   "value": "File",
@@ -765,7 +805,8 @@ definition_JSON (String.literal,int) example02' \<open>
     ]
   }
 }, "flag":true, "number":42}
-\<close>
+\<close> defining example02'
+
 thm example02'_def
 
 
@@ -779,9 +820,6 @@ lemma "example01 = example02"
 text\<open>
   Moreover, we can import JSON from external files:
 \<close>
-
-import_JSON example03' "example.json"
-thm example03'_def
 
 lemma "example01 = example03"
   by(simp add: example01_def example03_def)
@@ -899,9 +937,9 @@ end
 \<close>
 
 ML\<open>
-  Outer_Syntax.command ("serialize_JSON", Position.none) "export JSON data to an external file"
-  (Parse.name -- Scan.option Parse.name  >> (fn (const_name,filename) =>
-    (Toplevel.theory (fn state => Nano_Json_Serialize_Isar.export_json state const_name filename))));
+  Outer_Syntax.command ("JSON_export", Position.none) "export JSON data to an external file"
+  ((Parse.name -- Scan.option (\<^keyword>\<open>file\<close>-- Parse.name))  >> (fn (const_name,filename) =>
+    (Toplevel.theory (fn state => Nano_Json_Serialize_Isar.export_json state const_name (Option.map snd filename)))));
 \<close>
 
 
@@ -909,13 +947,13 @@ subsection\<open>Examples\<close>
 text\<open>
   We can now serialize JSON and print the result in the output window of Isabelle/HOL:
 \<close>
-serialize_JSON example02
+JSON_export example02
 thm example01_def
 
 text\<open>
   Alternatively, we can export the serialized JSON into a file:
 \<close>
-serialize_JSON example01 example01.json
+JSON_export example01 file example01
 
 section\<open>Putting Everything Together\<close>
 text\<open>

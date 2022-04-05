@@ -1,5 +1,5 @@
 (***********************************************************************************
- * Copyright (c) 2019-2021 Achim D. Brucker
+ * Copyright (c) 2019-2022 Achim D. Brucker
  *
  * All rights reserved.
  *
@@ -34,8 +34,9 @@ imports
 Nano_JSON_Main
 Complex_Main
 begin
+declare [[JSON_num_type = real]]
 
-definition_JSON example_default \<open>
+JSON \<open>
 {"menu": {
   "id": "file",
   "value": "File",
@@ -47,12 +48,15 @@ definition_JSON example_default \<open>
     ]
   }
 }, "flag":true, "number":-42.8}
-\<close>
-thm example_default_def
-serialize_JSON example_default
-serialize_JSON example_default example_default.json  
+\<close> defining example_default_real
 
-definition_JSON (string,int) example_string_int \<open>
+thm example_default_real_def
+
+JSON_export example_default_real
+JSON_export example_default_real file example_default_real  
+
+declare [[JSON_string_type=string, JSON_num_type = int]]
+JSON \<open>
 {"menu": {
   "id": "file",
   "value": "File",
@@ -64,12 +68,13 @@ definition_JSON (string,int) example_string_int \<open>
     ]
   }
 }, "flag":true, "number":42}
-\<close>
+\<close> defining example_string_int
 thm example_string_int_def
-serialize_JSON example_string_int
-serialize_JSON example_string_int example_string_int.json
+JSON_export example_string_int
+JSON_export example_string_int file example_string_int
 
-definition_JSON (string,int) example_literal_int \<open>
+declare [[JSON_string_type=String.literal, JSON_num_type = int]]
+JSON \<open>
 {"menu": {
   "id": "file",
   "value": "File",
@@ -81,12 +86,14 @@ definition_JSON (string,int) example_literal_int \<open>
     ]
   }
 }, "flag":true, "number":42}
-\<close>
-thm example_literal_int_def
-serialize_JSON example_literal_int
-serialize_JSON example_literal_int example_literal_int.json
+\<close> defining example_literal_int 
 
-definition_JSON (string,real) example_string_real \<open>
+thm example_literal_int_def
+JSON_export example_literal_int
+JSON_export example_literal_int file example_literal_int
+
+declare [[JSON_string_type=string, JSON_num_type = real]]
+JSON \<open>
 {"menu": {
   "id": "file",
   "value": "File",
@@ -98,12 +105,13 @@ definition_JSON (string,real) example_string_real \<open>
     ]
   }
 }, "flag":true, "number": 42.8}
-\<close>
+\<close> defining example_string_real
 thm example_string_real_def
-serialize_JSON example_string_real
-serialize_JSON example_string_real example_string_real.json
+JSON_export example_string_real
+JSON_export example_string_real file example_string_real
 
-definition_JSON (string,real) example_literal_real \<open>
+declare [[JSON_string_type=String.literal, JSON_num_type = real]]
+JSON \<open>
 {"menu": {
   "id": "file",
   "value": "File",
@@ -115,13 +123,14 @@ definition_JSON (string,real) example_literal_real \<open>
     ]
   }
 }, "flag":true, "number":42.8}
-\<close>
+\<close> defining example_literal_real 
 thm example_literal_real_def
-serialize_JSON example_literal_real
-serialize_JSON example_literal_real example_literal_real.json    
+JSON_export example_literal_real
+JSON_export example_literal_real file example_literal_real
 
 
-definition_JSON (string,string) example_string_string \<open>
+declare [[JSON_string_type=string, JSON_num_type = string]]
+JSON \<open>
 {"menu": {
   "id": "file",
   "value": "File",
@@ -133,12 +142,13 @@ definition_JSON (string,string) example_string_string \<open>
     ]
   }
 }, "flag":true, "number":-42.5}
-\<close>
+\<close> defining example_string_string
 thm example_string_string_def 
-serialize_JSON example_string_string
-serialize_JSON example_string_string example_literal_string.json
+JSON_export example_string_string
+JSON_export example_string_string file example_literal_string
 
-definition_JSON (String.literal,String.literal) example_literal_literal \<open>
+declare [[JSON_string_type=String.literal, JSON_num_type = String.literal]]
+JSON\<open>
 {"menu": {
   "id": "file",
   "value": "File",
@@ -150,9 +160,9 @@ definition_JSON (String.literal,String.literal) example_literal_literal \<open>
     ]
   }
 }, "flag":true, "number":-42.5}
-\<close>
+\<close> defining example_literal_literal
 thm example_literal_literal_def
-serialize_JSON example_literal_literal
-serialize_JSON example_literal_literal example_literal_literal.json
+JSON_export example_literal_literal
+JSON_export example_literal_literal file example_literal_literal
 
 end

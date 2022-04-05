@@ -148,8 +148,9 @@ fun nj_convert f key (OBJECT json) =  List.concat ((map (fn (k,json) => if k = k
 end
 \<close>
 
+declare [[JSON_string_type=String.literal]]
 
-definition_JSON  example_literal_literal \<open>
+JSON   \<open>
 {"menu": {
   "id": "file",
   "value": "File",
@@ -161,7 +162,7 @@ definition_JSON  example_literal_literal \<open>
     ]
   }
 }, "flag":true, "number":42}
-\<close>
+\<close> defining example_literal_literal
 
 
 fun nj_filter':: \<open>'a \<Rightarrow> 'a list \<times> ('a, 'b) json \<Rightarrow> ('a list \<times> ('a, 'b) json) list\<close>
@@ -189,6 +190,6 @@ fun nj_update :: \<open>(('a, 'b) json \<Rightarrow> ('a, 'b) json) \<Rightarrow
   | \<open>nj_update _ _ (BOOL b) = BOOL b\<close>
   | \<open>nj_update _ _ NULL = NULL\<close>
 
-value \<open>nj_filter ''onclick'' example_literal_literal\<close>
+value \<open>nj_filter (STR ''onclick'') example_literal_literal\<close>
 
 end
