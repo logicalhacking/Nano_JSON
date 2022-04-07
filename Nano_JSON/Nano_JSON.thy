@@ -164,9 +164,6 @@ structure Nano_Json_Type : NANO_JSON_TYPE = struct
       | dest_real t = Real.toDecimal (Real.fromInt (HOLogic.dest_number t |> snd))
 
     fun json_real_of_term r   = (NUMBER (REAL (dest_real r)))
-    fun mk_integer i = HOLogic.mk_number @{typ "int"} i
-
-
 
     fun json_int_of_term i    =   (NUMBER (INTEGER (snd (HOLogic.dest_number i)))) 
     fun json_string_of_term s = STRING (HOLogic.dest_string s)
@@ -209,8 +206,8 @@ structure Nano_Json_Type : NANO_JSON_TYPE = struct
 
       | mk_number _ _ = error "mk_number: type not supported"
 
-    fun dest_funT (Type ("fun", [d,i])) = d
-
+    fun dest_funT (Type ("fun", [d,_])) = d
+      | dest_funT _                     = error "Unkown ERROR in dest_funT."
 
     fun json_of_number t n = case dest_funT t of 
                                (@{typ "int"}) => json_int_of_term n
@@ -261,7 +258,7 @@ fun string_of_typ (Type (s, _))     = s
 
     in
         case type_of t of 
-          Type("Nano_JSON.json",[strT,numT]) => json_of t 
+          Type("Nano_JSON.json",[_,_]) => json_of t 
           | _ => error (String.concat ["Term not of type json: ", string_of_typ (type_of t)])
     end
 end
@@ -528,9 +525,7 @@ structure Nano_Json_Parser : NANO_JSON_PARSER  = struct
               | getPositive  cc = cc
 
         in
-            if okNumber digits then let 
-                val number = String.implode digits
-            in  
+            if okNumber digits then
               if List.all (Char.isDigit) (getPositive digits)
               then   (case Int.fromString (String.implode digits) of
                      NONE => parse_error "Number out of range"
@@ -538,7 +533,6 @@ structure Nano_Json_Parser : NANO_JSON_PARSER  = struct
               else   (case IEEEReal.fromString (String.implode digits) of
                      NONE => parse_error "Number out of range"
                    | SOME r => REAL r) 
-            end
             else parse_error ("Invalid number \"" ^ (String.implode digits) ^ "\"")
         end
                                      
@@ -630,11 +624,6 @@ subsection\<open>Isar Setup\<close>
 
 subsubsection\<open>The JSON Cartouche\<close>
 
-ML\<open>
-Scan.lift Args.cartouche_input
-\<close>
-
-
 syntax "_cartouche_nano_json" :: "cartouche_position \<Rightarrow> 'a"  ("JSON _")
 parse_translation\<open> 
 let
@@ -656,8 +645,6 @@ in
   [(@{syntax_const "_cartouche_nano_json"}, K (translation ()))] 
 end
 \<close>  
-
-(* Antiqoutation with config *)
 
 declare [[JSON_string_type = string]]
 lemma \<open>y == JSON \<open>{"name": true}\<close> \<close>
