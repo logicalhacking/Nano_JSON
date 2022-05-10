@@ -1,19 +1,44 @@
-\documentclass[10pt,DIV16,a4paper,abstract=true,twoside=semi,openright]
+\documentclass[11pt,DIV=12,a4paper,abstract=true,twoside=semi,openright]
 {scrreprt}
+\usepackage[T1]{fontenc}
 \usepackage[USenglish]{babel}
-\usepackage[numbers, sort&compress]{natbib}
+\usepackage[varqu,varl]{zi4}% inconsolata typewriter
+\usepackage[sfdefault,scaled=.85]{FiraSans}
+\usepackage[cmintegrals]{newtxsf}
+\usepackage{csquotes}
 \usepackage{isabelle,isabellesym}
 \usepackage{booktabs}
-\usepackage{paralist}
 \usepackage{graphicx}
-\usepackage{amssymb}
 \usepackage{xspace}
 \usepackage{xcolor}
 \usepackage{listings}
 \usepackage[]{mathtools}
+
+\usepackage[backend=bibtex,style=trad-abbrv]{biblatex}
+\addbibresource{root.bib}
+
+
 \usepackage[pdfpagelabels, pageanchor=false, plainpages=false]{hyperref}
 
-\isabellestyle{default}
+%\renewcommand\familydefault{\sfdefault}
+\colorlet{sectioncolor}{blue!60!black}
+\addtokomafont{chapterentrypagenumber}{\color{sectioncolor}}
+\addtokomafont{chapterentry}{\color{sectioncolor}}
+\addtokomafont{title}{\color{sectioncolor}\bfseries}
+\addtokomafont{chapter}{\color{sectioncolor}\bfseries}
+\addtokomafont{section}{\color{sectioncolor}}
+\addtokomafont{subsection}{\color{sectioncolor}}
+\addtokomafont{subsubsection}{\color{sectioncolor}}
+\addtokomafont{paragraph}{\color{sectioncolor}}
+\addtokomafont{subparagraph}{\color{sectioncolor}}
+
+\renewcommand{\isastyletext}{\normalsize\normalfont\sffamily}
+\renewcommand{\isastyletxt}{\normalfont\sffamily}
+\renewcommand{\isastylecmt}{\normalfont\sffamily}
+
+\isabellestyle{literal}
+\isabellestyle{tt}
+
 \setcounter{tocdepth}{1}
 \newcommand{\ie}{i.\,e.\xspace}
 \newcommand{\eg}{e.\,g.\xspace}
@@ -37,61 +62,107 @@
   \maketitle
   \begin{abstract}
     \begin{quote}
-      JSON \ldots
+      JSON (JavaScript Object Notation) is common format for exchanging data,
+      based on a collection of key/value-pairs (the JSON objects) and lists. Its
+      syntax is inspired by JavaScript with the aim of being easy to read and
+      write for humans and easy to parse and generate for machines. 
+  
+      Despite its origin in the JavaScript world, JSON is language-independent
+      and many programming languages support working with JSON-encoded data.
+      This makes JSON an interesting format for exchanging data with
+      Isabelle/HOL.
+ 
+      This AFP entry provides a JSON-like import-expert format for both
+      Isabelle/ML and Isabelle/HOL. On the one hand, this AFP entry provides
+      means for Isabelle/HOL users to work with JSON encoded data without the
+      need using Isabelle/ML. On the other and, the provided Isabelle/ML
+      interfaces allow additional extensions or integration into Isabelle
+      extensions written in Isabelle/ML. While format is not fully JSON
+      compliant (e.g., due to limitations in the range of supported Unicode
+      characters), it works in most situations: the provided implementation in
+      Isabelle/ML and its representation in Isabelle/HOL have been used
+      successfully in several projects for exchanging data sets of several
+      hundredths of megabyte between Isabelle and external tools.
 
       \bigskip
-      \noindent{\textbf{Keywords:} JSON, JavaScript Object Notation} 
+      \noindent\textbf{Keywords:} JSON, JavaScript Object Notation, data
+        exchange, data import, data export 
     \end{quote}
   \end{abstract}
 \tableofcontents
 
 
 \chapter{Introduction}
-
-% https://www.ecma-international.org/publications-and-standards/standards/ecma-404/
-% ECMA-404
-% The JSON data interchange syntax
-% 2nd edition, December 2017 
-
-
-\cite{ecma:json:2017,ietf:rfc8259-json:2017}
-
-
-and identical 7159 and in 2017 RFC 8259 as updates to RFC
-        4627. The JSON syntax specified by this specification and by RFC 8259 are int
-
-JSON (JavaScript Object Notation) is a lightweight data-interchange
-format. It is easy for humans to read and write. It is easy for
-machines to parse and generate. It is based on a subset of the
-JavaScript Programming Language Standard ECMA-262 3rd Edition -
-December 1999. JSON is a text format that is completely language
-independent but uses conventions that are familiar to programmers of
-the C-family of languages, including C, C++, C\#, Java, JavaScript,
-Perl, Python, and many others. These properties make JSON an ideal
-data-interchange language.
-
-JSON is built on two structures:
+JSON (JavaScript Object Notation)~\cite{ecma:json:2017,ietf:rfc8259-json:2017}
+is a widely-used format for exchanging data, having replaced
+XML~\cite{bray.ea:extensible:2008} in many areas. The structure of JSON is based
+on:
 \begin{itemize}
-\item A collection of name/value pairs. In various languages, this is
-  realized as an object, record, struct, dictionary, hash table, keyed
-  list, or associative array.
-\item An ordered list of values. In most languages, this is realized
-  as an array, vector, list, or sequence.
+\item A collection of key-value (name-value) pairs, also called JSON object. In
+  programming languages, this corresponds, e.g., to data structures such as
+  objects, records, structs, or hash tables. 
+\item A finite list of values. In programming languages, this corresponds, e.g.,
+  to lists, sequences, or arrays. 
 \end{itemize}
+The syntax of  is inspired by JavaScript with the aim of being easy to read and
+write for humans (that are comfortable with curly-bracket programming languages)
+and easy to parse and generate for machines. 
 
-These are universal data structures. Virtually all modern programming
-languages support them in one form or another. It makes sense that a
-data format that is interchangeable with programming languages also be
-based on these structures.
+Despite its origin in the JavaScript world, JSON is language-independent and
+many programming languages support working with JSON-encoded data. This makes
+JSON an interesting format for exchanging data with Isabelle/HOL.
+ 
+This AFP entry provides a JSON-like import-expert format for both Isabelle/ML
+and Isabelle/HOL. While this entry provides a simple formal model of JSON,
+formalizing an object-based data structure is not the aim of this AFP entry (for
+this, see,
+e.g.,~\cite{brucker.ea:extensible:2008-b,brucker.ea:afp-core-dom:2018}). The aim
+of this AFP entry is to provide means to work with JSON-encoded data in
+Isabelle, similar to the AFP entry ``XML''~\cite{sternagel.ea:xml:2014} provides
+means to work with XML documents in Isabelle. 
 
+In more detail, this AFP entry provides two different ways for importing and
+exporting JSON-encoded data in Isabelle:
+\begin{labeling}{\textbf{Isabelle/HOL:}}
+\item[\textbf{Isabelle/HOL:}] This AFP entry provides means for Isabelle/HOL
+      users to work with JSON encoded data: it provides a HOL data type
+      modelling the JSON format and new top-level
+      Isar~\cite{wenzel:isabelleisar:2002} commands to import and export JSON
+      encoded files. Moreover, a new top-level Isar command is provided to parse
+      JSON data that is stored ``inline'' within the Isabelle/HOL theory file. 
+\item[\textbf{Isabelle/ML:}] This AFP entry also provides interfaces to the
+      underlying implementation in Isabelle/ML, allowing to write users to
+      write their on extensions that require features not (yet) exposed to the 
+      Isabelle/HOL level. For example, data type packages for specific variants of JSON
+      that, e.g., should directly map to specific HOL data types or that need
+      further encoding or conversions during export or import. 
+\end{labeling}
 
+While the supported JSON-variant is not fully JSON compliant (e.g., due to
+limitations in the range of supported Unicode characters), it works in most
+situations: the provided implementation in Isabelle/ML and its representation in
+Isabelle/HOL have been used successfully in several projects for exchanging data
+sets of several hundredths of megabyte between Isabelle and external tools.
+
+\begin{figure}
+  \centering
+  \includegraphics[height=\textheight, width=\textwidth, keepaspectratio]{session_graph}
+  \caption{The Dependency Graph of the Isabelle Theories.\label{fig:session-graph}}
+\end{figure}
+The rest of this document is automatically generated from the
+formalization in Isabelle/HOL, i.e., all content is checked by
+Isabelle.  Overall, the structure of this document follows the
+theory dependencies (see \autoref{fig:session-graph}).
+
+\clearpage
+\tableofcontents
+
+\chapter{Generated Sessions}
 % generated text of all theories
 \input{session}
 
-{\small
-  \bibliographystyle{abbrvnat}
-  \bibliography{root}
-}
+\printbibliography
+
 \end{document}
 
 %%% Local Variables:
