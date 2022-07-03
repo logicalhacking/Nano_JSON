@@ -38,35 +38,42 @@ keywords
   and "defining"::quasi_command
 
 begin
-
-
 text\<open>
   This theory implements an import/export format for Isabelle/HOL that is inspired by 
   JSON (JavaScript Object Notation). While the format defined in this theory is inspired 
   by the JSON standard (@{url "https://www.json.org"}), it is not fully compliant. Most 
   notably, 
 
-  \<^item> only basic support for Unicode characters 
+  \<^item> only basic support for Unicode characters. In particular,  JSON strings are mapped to a 
+    polymorphic type usually is either instantiated with the @{type "string"} or 
+    @{type "String.literal"}. Hence, the strings that can be represented in JSON are limited
+    by the characters that Isabelle/HOL can handle (support on the Isabelle/ML level is 
+    less constrained).
   \<^item> numbers are mapped to a polymorphic type, which can, e.g., be instantiated with 
-    \<^item> @{term "real"} real, which is not a faithful representation of IEEE floating 
-          point numbers and requires Complex\_Main
-    \<^item> @{type "int"} we extended the abstract syntax to allow for representing integers as 
-    \<^item> @{type "string"}.
+    \<^item> @{term "real"}. Note that this is not a faithful representation of IEEE754 floating 
+          point numbers that are assumed in the JSON standard. Moreover, this required that
+          parent theories include Complex\_Main.
+    \<^item> @{type "int"}. This is recommended configuration, if the JSON files only contain integers
+      as numerical data.  
+    \<^item> @{type "string"}. If not numerical operations need to be done, numberical values can also 
+      be encoded as HOL strings (or @{type "String.literal"}).
 
-  Still, our JSON-like import/expert should work with most real-world JSON files, i.e., simplifying 
-  the data exchange between Isabelle/HOL and tools that can read/write JSON. 
-
-  Overall, this theory should enable you to work with JSON encoded data in Isabelle/HOL without
-  the need of implementing parsers or serialization in Isabelle/ML. You should be able to implement
-  mapping from the Nano JSON HOL data types to your own data types on the level of Isabelle/HOL (i.e., 
-  as executable HOL functions). Nevertheless, the provided ML routine that converts between the 
-  ML representation and the HOL representation of Nano JSON can also serve as a starting point 
-  for converting the ML representation to your own, domain-specific, HOL encoding. 
+  While the provided JSON import and export mechanism is not fully compliant to the JSON standard
+  (hence, its name ``Nano JSON''), it should work with most real-world JSON files. Actually, it 
+  has already served well in various projects, allowing us to simply exchange data between Isabelle/HOL
+  and external tools. 
 \<close>
+
 
 subsection\<open>Defining a JSON-like Data Structure\<close>
 
-datatype ('string, 'number) json = 
+text\<open>
+  We start by modelling a HOL data type for representing the abstract syntax of JSON, which 
+  consists out of objects, lists (called arrays), numbers, strings, and Boolean values.
+ \<close>
+subsubsection\<open>A HOL Data Type for JSON\<close>
+
+datatype ('string, 'number) json =
      OBJECT "('string * ('string, 'number) json) list"
      | ARRAY "('string, 'number) json list"
   | NUMBER "'number" 
@@ -74,7 +81,6 @@ datatype ('string, 'number) json =
   | BOOL "bool" 
   | NULL 
 
-subsection\<open>Example\<close>
 text\<open>
   Using the data type @{typ "('string, 'number) json"}, we can now represent JSON encoded data 
   easily in HOL, e.g., using the concrete instance @{typ "(string, int) json"}:\<close>
@@ -82,23 +88,24 @@ definition example01::\<open>(string, int) json\<close> where
 "example01 = 
   OBJECT [(''menu'', OBJECT [(''id'', STRING ''file''), (''value'', STRING ''File''),
           (''popup'', OBJECT [(''menuitem'', ARRAY
-                       [OBJECT [(''value'', STRING ''New''), (''onclick'', STRING ''CreateNewDoc()'')], 
-                        OBJECT [(''value'', STRING ''Open''), (''onclick'', STRING ''OpenDoc()'')],
-                        OBJECT [(''value'', STRING ''Close''), (''onclick'', STRING ''CloseDoc()'')]
+                       [OBJECT [(''value'', STRING ''New''), 
+                                (''onclick'', STRING ''CreateNewDoc()'')], 
+                        OBJECT [(''value'', STRING ''Open''), 
+                                (''onclick'', STRING ''OpenDoc()'')],
+                        OBJECT [(''value'', STRING ''Close''), 
+                                (''onclick'', STRING ''CloseDoc()'')]
                        ])]
            )]),(''flag'', BOOL True), (''number'', NUMBER 42)
-]"
+         ]"
 
+
+subsubsection\<open>ML Implementation\<close>
 text\<open>
-  The translation of the data type @{typ "('string, 'number) json"} to ML is straight forward with the exception 
-  that we do not need to distinguish different String representations.
-  In addition, we also 
-  provide methods for converting JSON instances between the representation as Isabelle terms and 
-  the representation as ML data structure.
+  The translation of the data type @{typ "('string, 'number) json"} to Isabelle/ML is straight 
+  forward with the exception that we do not need to distinguish different String representations. 
+  In addition, we also  provide methods for converting JSON instances between the representation 
+  as Isabelle terms and the representation as Isabelle/ML data structure.
 \<close>
-
-subsection\<open>ML Implementation\<close>
-
 
 ML\<open>
 signature NANO_JSON_TYPE = sig
@@ -115,10 +122,11 @@ signature NANO_JSON_TYPE = sig
     val json_of_term: term -> json
 end
 \<close>
+
 ML_file Nano_JSON_Type.ML
 
 
-section\<open>Parsing Nano JSON\<close>
+subsection\<open>Parsing Nano JSON\<close>
 
 text\<open>
   In this section, we define the infrastructure for parsing JSON-like data structures as
@@ -126,8 +134,57 @@ text\<open>
   ``Simple Standard ML JSON parser'' from Chris Cannam.
 \<close>
 
-subsection\<open>ML Implementation\<close>
-subsubsection\<open>Lexer\<close>
+subsubsection\<open>ML Implementation\<close>
+
+paragraph\<open>Configuration Attributes.\<close>
+text\<open>
+  We start by preparing the infrastructure for three configuration attributes, using 
+  the Isabelle/Isar attribute mechanism:
+\<close>
+ML\<open>
+  val json_num_type = let
+    val (json_num_type_config, json_num_type_setup) =
+      Attrib.config_string (Binding.name "JSON_num_type") (K "int")
+  in
+    Context.>>(Context.map_theory json_num_type_setup);
+    json_num_type_config
+  end
+\<close>
+text\<open>
+  The attribute ``JSON\_num\_type'' (default @{type "int"}) allows for configuring the HOL-type 
+  used representing JSON numerals.
+\<close>
+
+ML\<open>
+  val json_string_type = let
+    val (json_string_type_config, json_string_type_setup) =
+      Attrib.config_string (Binding.name "JSON_string_type") (K "string")
+  in
+    Context.>>(Context.map_theory json_string_type_setup);
+    json_string_type_config
+  end
+\<close>
+text\<open>
+  The attribute ``JSON\_string\_type'' (default @{type "string"}) allows for configuring the 
+  HOL-type used representing JSON string.
+\<close>
+
+ML\<open>
+  val json_verbose = let
+    val (json_string_type_config, json_string_type_setup) =
+      Attrib.config_bool (Binding.name "JSON_verbose") (K false)
+  in
+    Context.>>(Context.map_theory json_string_type_setup);
+    json_string_type_config
+  end
+\<close>
+text\<open>
+  The Boolean attribute ``JSON\_verbose'' (default: false) allows for enabling warnings during the 
+  JSON processing.
+\<close>
+
+paragraph\<open>Lexer.\<close>
+text\<open>The following Isabelle/ML signatures captures the lexer:\<close>
 ML\<open>
 signature NANO_JSON_LEXER = sig
     structure T : sig
@@ -149,33 +206,8 @@ end
 \<close>
 ML_file Nano_JSON_Lexer.ML
 
-subsubsection\<open>Parser\<close>
-
-ML\<open>
-  val json_num_type = let
-    val (json_num_type_config, json_num_type_setup) =
-      Attrib.config_string (Binding.name "JSON_num_type") (K "int")
-  in
-    Context.>>(Context.map_theory json_num_type_setup);
-    json_num_type_config
-  end
-  val json_string_type = let
-    val (json_string_type_config, json_string_type_setup) =
-      Attrib.config_string (Binding.name "JSON_string_type") (K "string")
-  in
-    Context.>>(Context.map_theory json_string_type_setup);
-    json_string_type_config
-  end
-  val json_verbose = let
-    val (json_string_type_config, json_string_type_setup) =
-      Attrib.config_bool (Binding.name "JSON_verbose") (K false)
-  in
-    Context.>>(Context.map_theory json_string_type_setup);
-    json_string_type_config
-  end
-
-
-\<close>
+paragraph\<open>Parser.\<close>
+text\<open>The following Isabelle/ML signatures captures the parser:\<close>
 
 ML\<open>
 
@@ -189,13 +221,19 @@ end
 
 ML_file "Nano_JSON_Parser.ML"
 
-ML\<open>
-
-Nano_Json_Parser.term_of_json_string (@{typ string}) (@{typ int}) "{\"name\": [true,false,\"test\"]}"
+text\<open>
+  The parser ML\<open>Nano_Json_Parser.term_of_json_string\<close> can now be used, on the Isabelle/ML-level
+  as follows:
 \<close>
-subsection\<open>Isar Setup\<close>
+ML\<open>
+  Nano_Json_Parser.term_of_json_string (@{typ string}) (@{typ int}) 
+                                       "{\"name\": [true,false,\"test\"]}"
+\<close>
 
-subsubsection\<open>The JSON Cartouche\<close>
+subsubsection\<open>Isar Setup: Cartouche and Isar-Top-level Binding\<close>
+
+paragraph\<open>The JSON Cartouche.\<close>
+text\<open>First, we define a cartouche that allows using JSON syntax within HOL expressions:\<close>
 
 syntax "_cartouche_nano_json" :: "cartouche_position \<Rightarrow> 'a"  ("JSON _")
 parse_translation\<open> 
@@ -205,12 +243,15 @@ let
       val strT = Nano_Json_Parser.stringT thy
       val numT = Nano_Json_Parser.numT thy
       fun err () = raise TERM ("Common._cartouche_nano_json", args)
-      fun input s pos = Symbol_Pos.implode (Symbol_Pos.cartouche_content (Symbol_Pos.explode (s, pos)))
+      fun input s pos = Symbol_Pos.implode (Symbol_Pos.cartouche_content 
+                                           (Symbol_Pos.explode (s, pos)))
     in
       case args of
         [(c as Const (@{syntax_const "_constrain"}, _)) $ Free (s, _) $ p] =>
           (case Term_Position.decode_position p of
-            SOME (pos, _) => c $ Nano_Json_Parser.term_of_json_string strT numT (input s pos) $ p
+            SOME (pos, _) => c 
+                          $ Nano_Json_Parser.term_of_json_string strT numT (input s pos) 
+                          $ p
           | NONE => err ())
       | _ => err ()
   end
@@ -218,6 +259,11 @@ in
   [(@{syntax_const "_cartouche_nano_json"}, K (translation ()))] 
 end
 \<close>  
+
+text\<open>
+  In the following, we briefly illustrate the use of the JSON cartouche and the attribute 
+  for mapping JSON types to HOL types:
+\<close>
 
 declare [[JSON_string_type = string]]
 lemma \<open>y == JSON \<open>{"name": true}\<close> \<close>
@@ -236,12 +282,17 @@ lemma \<open>y == JSON\<open>{"name": [true,false,"test"],
   oops
 
 
-subsubsection\<open>Isar Top-Level Commands\<close>
+paragraph\<open>Isar Top-Level Commands.\<close> 
+text\<open>
+  Furthermore, we define two Isar top-level commands: one that allows for importing JSON 
+  data from the file system, and one for defining JSON ``inline'' within Isabelle theory files.
+\<close>
 ML\<open>
 structure Nano_Json_Parser_Isar = struct
     fun make_const_def (binding, trm) lthy = let
             val lthy' =  snd ( Local_Theory.begin_nested lthy )
-            val arg = ((binding, NoSyn), ((Thm.def_binding binding,@{attributes [code]}), trm)) 
+            val arg = ((binding, NoSyn), 
+                       ((Thm.def_binding binding,@{attributes [code]}), trm)) 
             val ((_, (_ , thm)), lthy'') = Local_Theory.define arg lthy'
         in
             (thm, Local_Theory.end_nested lthy'')
@@ -253,68 +304,51 @@ structure Nano_Json_Parser_Isar = struct
             val strT = Nano_Json_Parser.stringT thy  
             val numT = Nano_Json_Parser.numT thy 
     in 
-       (snd o (make_const_def (Binding.name name, Nano_Json_Parser.term_of_json_string strT numT json ))) lthy
+       (snd o (make_const_def (Binding.name name, 
+                               Nano_Json_Parser.term_of_json_string strT numT json))) 
+       lthy
     end 
 
-    val typeCfgParse  = Scan.optional (Args.parens (Parse.name -- Args.$$$ "," -- Parse.name)) (("",""),"");
+    val typeCfgParse  = Scan.optional 
+                             (Args.parens (Parse.name -- Args.$$$ "," -- Parse.name)) 
+                             (("",""),"");
     val jsonP = (Parse.name -- Parse.cartouche)
 
 end
 \<close>
 
-
 ML\<open>
-val _ = Outer_Syntax.local_theory @{command_keyword "JSON"} "Define JSON." 
-        ((Parse.cartouche -- \<^keyword>\<open>defining\<close> -- Parse.name) >>  (fn ((json, _), name)  
+val _ = Outer_Syntax.local_theory @{command_keyword "JSON"} 
+        "Define JSON." 
+        ((Parse.cartouche -- \<^keyword>\<open>defining\<close> -- Parse.name) >> (fn ((json, _), name)
         => Nano_Json_Parser_Isar.def_json name json))
 
-val _ = Outer_Syntax.command \<^command_keyword>\<open>JSON_file\<close> "Import JSON and bind it to a definition."
-        ((Resources.parse_file -- \<^keyword>\<open>defining\<close> -- Parse.name) >> (fn ((get_file,_),name) =>
-          Toplevel.theory (fn thy =>
-          let
-             val ({lines, ...}:Token.file) = get_file thy;
-             val thy'' = Named_Target.theory_map (Nano_Json_Parser_Isar.def_json name (String.concat lines)) thy
-          in thy'' end)))
+val _ = Outer_Syntax.command \<^command_keyword>\<open>JSON_file\<close> 
+        "Import JSON and bind it to a definition."
+        ((Resources.parse_file -- \<^keyword>\<open>defining\<close> -- Parse.name) >> 
+         (fn ((get_file,_),name) =>
+           Toplevel.theory (fn thy =>
+           let
+              val ({lines, ...}:Token.file) = get_file thy;
+              val thy'' = Named_Target.theory_map 
+                            (Nano_Json_Parser_Isar.def_json name (String.concat lines)) 
+                            thy
+           in thy'' end)))
 \<close>
-       
-JSON_file "example.json" defining example03
 
-JSON \<open>
-{"menu": {
-  "id": "file",
-  "value": "File",
-  "popup": {
-    "menuitem": [
-      {"value": "New", "onclick": "CreateNewDoc()"},
-      {"value": "Open", "onclick": "OpenDoc()"},
-      {"value": "Close", "onclick": "CloseDoc()"}
-    ]
-  }
-}, "flag":true, "number":42}
-\<close> defining example04
-
-thm example03_def example04_def
-
-lemma "example03 = example04"
-  by (simp add:example03_def example04_def)
-
-subsection\<open>Examples\<close>
+subsubsection\<open>Examples\<close>
 
 text\<open>
-Now we can use the JSON Cartouche for defining JSON-like data ``on-the-fly'', e.g.:
-\<close>
-
-  text\<open>
-  Note that you need to escape quotes within the JSON Cartouche, if you are using 
-  quotes as lemma delimiters, e.g.,:
+  Now we can use the JSON Cartouche for defining JSON-like data ``on-the-fly''. Note that you 
+  need to escape quotes within the JSON Cartouche, if you are using quotes as lemma delimiters, 
+  e.g.,:
 \<close>
 lemma "y == JSON\<open>{\"name\": [true,false,\"test\"]}\<close>"
   oops
 text\<open>
-  Thus, we recommend to use the Cartouche delimiters when using the JSON Cartouche with non 
-  trivial data structures:
+  Thus, we recommend to use the Cartouche delimiters when using the JSON Cartouche with 
+  non-trivial data structures:
 \<close>
-
 lemma \<open> example01 == JSON \<open>{"menu": {
                             "id": "file",
                             "value": "File",
@@ -331,10 +365,8 @@ lemma \<open> example01 == JSON \<open>{"menu": {
   by(simp add: example01_def)
 
 text\<open>
-  Using the top level Isar commands defined in the last section, we can now easily define
-  JSON-like data: 
+  We can define new JSON data ``inline'', using the Isar keyword @{command "JSON"}:
 \<close>
-
 JSON \<open>
 {"menu": {
   "id": "file",
@@ -347,51 +379,28 @@ JSON \<open>
     ]
   }
 }, "flag":true, "number":42}
-\<close> defining example02
-
-
-thm example02_def
-
-declare [[JSON_string_type = String.literal]]
-JSON \<open>
-{"menu": {
-  "id": "file",
-  "value": "File",
-  "popup": {
-    "menuitem": [
-      {"value": "New", "onclick": "CreateNewDoc()"},
-      {"value": "Open", "onclick": "OpenDoc()"},
-      {"value": "Close", "onclick": "CloseDoc()"}
-    ]
-  }
-}, "flag":true, "number":42}
-\<close> defining example02'
-
-thm example02'_def
-
-
-ML\<open> 
-@{term \<open>JSON\<open>{"number":31}\<close>\<close>}
-\<close>
-
-lemma "example01 = example02"
-  by(simp add: example01_def example02_def)
+\<close> defining example04
 
 text\<open>
-  Moreover, we can import JSON from external files:
+  Moreover, we can define new JSON data by reading it from a file, using the Isar keyword 
+  @{command "JSON_file"}:
 \<close>
 
-lemma "example01 = example03"
-  by(simp add: example01_def example03_def)
+JSON_file "example.json" defining example03
 
-section\<open>Serializing Nano JSON\<close>
+thm example03_def example04_def
+
+lemma "example03 = example04"
+  by (simp add:example03_def example04_def)
+
+subsection\<open>Serializing Nano JSON\<close>
 
 text\<open>
   In this section, we define the necessary infrastructure to serialize (export) data from HOL using 
   a JSON-like data structure that other JSON tools should be able to import.
 \<close>
 
-subsection\<open>ML Implementation\<close>
+subsubsection\<open>ML Implementation\<close>
 ML\<open>
 signature NANO_JSON_SERIALIZER = sig
     val serialize_json: Nano_Json_Type.json -> string
@@ -403,7 +412,7 @@ end
 
 ML_file "Nano_JSON_Serializer.ML"
 
-subsection\<open>Isar Setup\<close>
+subsubsection\<open>Isar Setup\<close>
 ML\<open>
 structure Nano_Json_Serialize_Isar = struct
   fun export_json thy json_const filename =
@@ -415,16 +424,18 @@ structure Nano_Json_Serialize_Isar = struct
     val _ = Export.export thy' binding [XML.Text content];
   in thy' end;
         val json_term = case term of
-                              Const (@{const_name "Pure.eq"}, _) $ _ $ json_term => json_term
-                           |  _ $ (_ $ json_term) => json_term
-                           | _ => error ("Term structure not supported.")
+                        Const (@{const_name "Pure.eq"}, _) $ _ $ json_term => json_term
+                      | _ $ (_ $ json_term) => json_term
+                      | _ => error ("Term structure not supported.")
         val json_string  = Nano_Json_Serializer.serialize_term_pretty json_term 
     in
         case filename of 
              SOME filename => let 
                                 val filename = Path.explode (filename^".json")
-                                val thy' = export (Path.binding (Path.append (Path.explode "json") 
-                                                   filename,Position.none)) json_string thy
+                                val thy' = export (Path.binding 
+                                                    (Path.append (Path.explode "json") 
+                                                       filename,Position.none)) 
+                                                    json_string thy
                                 val _ =  writeln (Export.message thy (Path.basic "json"))
                               in
                                  thy'                                 
@@ -435,17 +446,20 @@ end
 \<close>
 
 ML\<open>
-  Outer_Syntax.command ("JSON_export", Position.none) "export JSON data to an external file"
-  ((Parse.name -- Scan.option (\<^keyword>\<open>file\<close>-- Parse.name))  >> (fn (const_name,filename) =>
-    (Toplevel.theory (fn state => Nano_Json_Serialize_Isar.export_json state const_name (Option.map snd filename)))));
+  Outer_Syntax.command ("JSON_export", Position.none) 
+  "export JSON data to an external file"
+  ((Parse.name -- Scan.option (\<^keyword>\<open>file\<close>-- Parse.name)) 
+   >> (fn (const_name,filename) =>
+         (Toplevel.theory (fn state => Nano_Json_Serialize_Isar.export_json state 
+                                                   const_name (Option.map snd filename)))));
 \<close>
 
 
-subsection\<open>Examples\<close>
+subsubsection\<open>Examples\<close>
 text\<open>
   We can now serialize JSON and print the result in the output window of Isabelle/HOL:
 \<close>
-JSON_export example02
+JSON_export example01
 thm example01_def
 
 text\<open>
@@ -453,10 +467,10 @@ text\<open>
 \<close>
 JSON_export example01 file example01
 
-section\<open>Putting Everything Together\<close>
+subsection\<open>Putting Everything Together\<close>
 text\<open>
   For convenience, we provide an ML structure that provides access to both the parser and the 
-  serializer:,  
+  serializer:  
 \<close>
 ML\<open>
 structure Nano_Json = struct
