@@ -73,6 +73,6 @@ paragraph\<open>Configuration.\<close> text \<open>We provide three configuratio
 subsection\<open>Isabelle/ML\<close>
 text\<open>
   We refer users who want to use or extend Nano JSON on the Isabelle/ML level to the ML signatures
-  shown in the implementation chapter (\autoref{ch:implementation}). 
+  shown in the implementation chapter, i.e., \autoref{ch:implementation}. 
 \<close>
 end

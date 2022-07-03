@@ -28,10 +28,17 @@
 
 section\<open>Examples\<close>
 
-theory Example
+theory
+  Example
 imports 
-Nano_JSON_Main
+  Nano_JSON_Main
 begin
+
+text\<open>
+  In this theory, we illustrate various small examples of importing or exporting of 
+  JSON data from Isabelle/HOL. The examples in this theory do not use the type 
+  @{term "real"} to avoid the need to depend on the theory ``Complex\_Main``.
+\<close>
 
 JSON \<open>
 {"menu": {
@@ -141,6 +148,62 @@ JSON \<open>
 thm example_literal_literal_def
 JSON_export example_literal_literal
 JSON_export example_literal_literal file example_literal_literal
+
+text\<open>xxxx\<close>
+
+
+
+text\<open>
+  Using the top level Isar commands defined in the last section, we can now easily define
+  JSON-like data: 
+\<close>
+
+JSON \<open>
+{"menu": {
+  "id": "file",
+  "value": "File",
+  "popup": {
+    "menuitem": [
+      {"value": "New", "onclick": "CreateNewDoc()"},
+      {"value": "Open", "onclick": "OpenDoc()"},
+      {"value": "Close", "onclick": "CloseDoc()"}
+    ]
+  }
+}, "flag":true, "number":42}
+\<close> defining example02
+
+
+thm example02_def
+
+declare [[JSON_string_type = String.literal]]
+JSON \<open>
+{"menu": {
+  "id": "file",
+  "value": "File",
+  "popup": {
+    "menuitem": [
+      {"value": "New", "onclick": "CreateNewDoc()"},
+      {"value": "Open", "onclick": "OpenDoc()"},
+      {"value": "Close", "onclick": "CloseDoc()"}
+    ]
+  }
+}, "flag":true, "number":42}
+\<close> defining example02'
+
+thm example02'_def
+
+
+ML\<open> 
+@{term \<open>JSON\<open>{"number":31}\<close>\<close>}
+\<close>
+
+
+text\<open>
+  Moreover, we can import JSON from external files:
+\<close>
+
+lemma "example01 = example03"
+  by(simp add: example01_def example03_def)
 
 
 end
