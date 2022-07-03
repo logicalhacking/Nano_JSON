@@ -117,8 +117,8 @@ signature NANO_JSON_TYPE = sig
                   | BOOL of bool
                   | NULL
 
-    val term_of_real: IEEEReal.decimal_approx -> term 
-    val term_of_json: typ -> typ -> json -> term
+    val term_of_real: bool -> IEEEReal.decimal_approx -> term 
+    val term_of_json: bool -> typ -> typ -> json -> term
     val json_of_term: term -> json
 end
 \<close>
@@ -213,7 +213,7 @@ ML\<open>
 
 signature NANO_JSON_PARSER = sig
     val json_of_string : string -> Nano_Json_Type.json
-    val term_of_json_string : typ -> typ -> string -> term
+    val term_of_json_string : bool -> typ -> typ -> string -> term
     val numT: theory -> typ
     val stringT: theory -> typ
 end
@@ -226,7 +226,7 @@ text\<open>
   as follows:
 \<close>
 ML\<open>
-  Nano_Json_Parser.term_of_json_string (@{typ string}) (@{typ int}) 
+  Nano_Json_Parser.term_of_json_string true (@{typ string}) (@{typ int}) 
                                        "{\"name\": [true,false,\"test\"]}"
 \<close>
 
@@ -240,6 +240,7 @@ parse_translation\<open>
 let
   fun translation u args = let
       val thy = Context.the_global_context u
+      val verbose = Config.get_global thy json_verbose
       val strT = Nano_Json_Parser.stringT thy
       val numT = Nano_Json_Parser.numT thy
       fun err () = raise TERM ("Common._cartouche_nano_json", args)
@@ -250,7 +251,7 @@ let
         [(c as Const (@{syntax_const "_constrain"}, _)) $ Free (s, _) $ p] =>
           (case Term_Position.decode_position p of
             SOME (pos, _) => c 
-                          $ Nano_Json_Parser.term_of_json_string strT numT (input s pos) 
+                          $ Nano_Json_Parser.term_of_json_string verbose strT numT (input s pos) 
                           $ p
           | NONE => err ())
       | _ => err ()
@@ -303,9 +304,10 @@ structure Nano_Json_Parser_Isar = struct
             val thy = Proof_Context.theory_of lthy    
             val strT = Nano_Json_Parser.stringT thy  
             val numT = Nano_Json_Parser.numT thy 
+            val verbose = Config.get_global thy json_verbose
     in 
        (snd o (make_const_def (Binding.name name, 
-                               Nano_Json_Parser.term_of_json_string strT numT json))) 
+                               Nano_Json_Parser.term_of_json_string verbose strT numT json))) 
        lthy
     end 
 

@@ -36,8 +36,10 @@ structure Nano_Json_Type : NANO_JSON_TYPE = struct
                   | NULL
 
 
-    fun ieee_real_to_rat_approx (rat:IEEEReal.decimal_approx) = let
-           (* val _ = warning ("Conversion of real numbers is not JSON compliant.") *)
+    fun ieee_real_to_rat_approx verbose (rat:IEEEReal.decimal_approx) = let
+           val _ = if verbose 
+                   then warning ("Conversion of real numbers is not JSON compliant.") 
+                   else ()
            fun pow (_, 0) = 1  
              | pow (x, n) = if n mod 2 = 0 then pow (x*x, n div 2)  
                                            else x * pow (x*x, n div 2); 
@@ -68,7 +70,7 @@ structure Nano_Json_Type : NANO_JSON_TYPE = struct
     fun mk_divide realT t1 t2 = (divide_classC realT) $ t1 $ t2
     fun mk_real_num realT i = HOLogic.mk_number realT i
     fun mk_real realT (p,q) = if q = 1 then mk_real_num realT p else mk_divide realT (mk_real_num realT p) (mk_real_num realT q)
-    fun term_of_real  r = (mk_real HOLogic.realT (ieee_real_to_rat_approx r))
+    fun term_of_real verbose  r = (mk_real HOLogic.realT (ieee_real_to_rat_approx verbose r))
 
     fun dest_real (Const(@{const_name Rings.divide_class.divide} , _)$a$b) = 
                                       Real.toDecimal(Real.fromInt(HOLogic.dest_number a |> snd)
@@ -99,24 +101,24 @@ structure Nano_Json_Type : NANO_JSON_TYPE = struct
                                      (String.explode s))
 
 
-    fun mk_number @{typ "int"} (INTEGER i)            = HOLogic.mk_number @{typ "int"} i
-      | mk_number @{typ "nat"} (INTEGER i)            = if i >= 0 then HOLogic.mk_number @{typ "nat"} i
-                                                        else error "mk_number: JSON contains negative number and target is nat."
-      | mk_number @{typ "int"} (REAL r)             = error (String.concat["mk_number: JSON contains real number and target is nat or int: ", 
+    fun mk_number _  @{typ "int"} (INTEGER i)            = HOLogic.mk_number @{typ "int"} i
+      | mk_number _  @{typ "nat"} (INTEGER i)            = if i >= 0 then HOLogic.mk_number @{typ "nat"} i
+                                                                else error "mk_number: JSON contains negative number and target is nat."
+      | mk_number _ @{typ "int"} (REAL r)             = error (String.concat["mk_number: JSON contains real number and target is nat or int: ", 
      IEEEReal.toString  r])
-      | mk_number (Type("Real.real",[])) (INTEGER i) = term_of_real (Real.toDecimal (Real.fromInt i))
-      | mk_number (Type("Real.real",[])) (REAL r)    = term_of_real  r
+      | mk_number verbose (Type("Real.real",[])) (INTEGER i) = term_of_real verbose (Real.toDecimal (Real.fromInt i))
+      | mk_number verbose (Type("Real.real",[])) (REAL r)    = term_of_real verbose r
 
-      | mk_number @{typ "string"} n         = (case n of 
+      | mk_number _ @{typ "string"} n         = (case n of 
                                                  (INTEGER i) => Int.toString i |> fix_tilde_sign |> HOLogic.mk_string
                                                | (REAL r)    => IEEEReal.toString r |> fix_tilde_sign |> HOLogic.mk_string 
                                                  ) 
-      | mk_number @{typ "String.literal"} n  = (case n of 
+      | mk_number _ @{typ "String.literal"} n  = (case n of 
                                                  (INTEGER i) => HOLogic.mk_literal (Int.toString i |> fix_tilde_sign)
                                                | (REAL r)    => HOLogic.mk_literal (IEEEReal.toString r |> fix_tilde_sign) 
                                                  )
 
-      | mk_number _ _ = error "mk_number: type not supported"
+      | mk_number _ _ _ = error "mk_number: type not supported"
 
     fun dest_funT (Type ("fun", [d,_])) = d
       | dest_funT _                     = error "Unkown ERROR in dest_funT."
@@ -138,16 +140,15 @@ structure Nano_Json_Type : NANO_JSON_TYPE = struct
                              | _  => error "Unknown ERROR  in json_of_string."
 
                                     
-    fun term_of_json strT numT (OBJECT l) = mk_json_object strT numT 
+    fun term_of_json verbose strT numT (OBJECT l) = mk_json_object strT numT 
                                   $(HOLogic.mk_list ((HOLogic.mk_prodT (strT, mk_jsonT strT numT )))  
-                                    (map (fn (s,j) => HOLogic.mk_tuple[mk_str strT s, term_of_json strT numT j]) l))
-      | term_of_json strT numT (ARRAY l)  = mk_json_array strT numT 
-                                  $(HOLogic.mk_list ( mk_jsonT strT numT) (map (term_of_json strT numT) l))
-      | term_of_json strT numT (NUMBER n) = (mk_json_number strT numT)$(mk_number numT n)  
-      | term_of_json strT numT (STRING s) = (mk_json_string strT numT)$(mk_str strT s)
-      | term_of_json strT numT (BOOL v)   = (mk_json_bool strT numT)$(if v then @{const "True"} else @{const "False"}) 
-      | term_of_json strT numT  (NULL)    = mk_json_null strT numT 
-
+                                    (map (fn (s,j) => HOLogic.mk_tuple[mk_str strT s, term_of_json verbose strT numT j]) l))
+      | term_of_json verbose strT numT (ARRAY l)  = mk_json_array strT numT 
+                                  $(HOLogic.mk_list ( mk_jsonT strT numT) (map (term_of_json verbose  strT numT) l))
+      | term_of_json verbose strT numT (NUMBER n) = (mk_json_number strT numT)$(mk_number verbose numT n)  
+      | term_of_json _ strT numT (STRING s) = (mk_json_string strT numT)$(mk_str strT s)
+      | term_of_json _  strT numT (BOOL v)   = (mk_json_bool strT numT)$(if v then @{const "True"} else @{const "False"}) 
+      | term_of_json _  strT numT  (NULL)    = mk_json_null strT numT 
 
 fun string_of_typ (Type (s, _))     = s
   | string_of_typ (TFree (s, _))    = s

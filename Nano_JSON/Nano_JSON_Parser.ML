@@ -135,7 +135,7 @@ structure Nano_Json_Parser : NANO_JSON_PARSER  = struct
     fun json_of_string str = case parseTokens (Nano_Json_Lexer.tokenize_string str) of
                             (value, []) =>  value
                           | (_, _) => parse_error "Extra data after input"
-    fun term_of_json_string strT numT = (term_of_json strT numT) o json_of_string
+    fun term_of_json_string verbose strT numT = (term_of_json verbose strT numT) o json_of_string
 
     fun checkReal thy = SOME (Thm.global_ctyp_of thy  HOLogic.realT)
                                                 handle _ => NONE 
