@@ -29,52 +29,74 @@
 
 section\<open>Query Infrastructure\<close>
 
-theory Nano_JSON_Query
+theory 
+  Nano_JSON_Query
 imports 
-Nano_JSON
+  Nano_JSON
 begin
+text\<open>
+  In this theory, we define various functions for working with JSON data, i.e., the data types 
+  defined in the theory @{theory "Nano_JSON.Nano_JSON"}. These query functions are useful for 
+  building more complex functionality of JSON encoded data. One could think of them as something
+  like jq (\<^url>\<open>https://stedolan.github.io/jq/\<close>) for Isabelle.
+  \<close>
+
+subsubsection\<open>Isabelle/ML\<close>
 ML\<open>
 signature Nano_Json_Query = sig
-    val nj_filter: string -> Nano_Json_Type.json -> (string list * Nano_Json_Type.json) list
-    val nj_filterp: string list -> Nano_Json_Type.json -> (string list * Nano_Json_Type.json) list
-    val nj_filter_obj: (string * Nano_Json_Type.json option) -> Nano_Json_Type.json -> (string list * Nano_Json_Type.json) list
-    val nj_filterp_obj: (string list * Nano_Json_Type.json option) -> Nano_Json_Type.json -> (string list * Nano_Json_Type.json) list
-    val nj_first_value_of: string -> Nano_Json_Type.json -> Nano_Json_Type.json option
-    val nj_first_value_ofp:  string list -> Nano_Json_Type.json -> Nano_Json_Type.json option
-    val nj_update: (Nano_Json_Type.json -> Nano_Json_Type.json) -> string -> Nano_Json_Type.json -> Nano_Json_Type.json
-    val nj_updatep: (Nano_Json_Type.json -> Nano_Json_Type.json) -> string list -> Nano_Json_Type.json -> Nano_Json_Type.json
-    val nj_convert: (Nano_Json_Type.json -> 'a) -> string -> Nano_Json_Type.json -> 'a list
-    val nj_string_of: Nano_Json_Type.json -> string option  
-    val nj_string_of': string -> Nano_Json_Type.json -> string
+    val nj_filter: 
+        string -> Nano_Json_Type.json 
+                   -> (string list * Nano_Json_Type.json) list
+    val nj_filterp: 
+        string list -> Nano_Json_Type.json 
+                    -> (string list * Nano_Json_Type.json) list
+    val nj_filter_obj: 
+        (string * Nano_Json_Type.json option) -> Nano_Json_Type.json 
+                    -> (string list * Nano_Json_Type.json) list
+    val nj_filterp_obj: 
+        (string list * Nano_Json_Type.json option) -> Nano_Json_Type.json 
+                    -> (string list * Nano_Json_Type.json) list
+    val nj_first_value_of: 
+        string -> Nano_Json_Type.json 
+                    -> Nano_Json_Type.json option
+    val nj_first_value_ofp:  
+        string list -> Nano_Json_Type.json 
+                    -> Nano_Json_Type.json option
+    val nj_update: 
+        (Nano_Json_Type.json -> Nano_Json_Type.json) -> string -> Nano_Json_Type.json 
+                    -> Nano_Json_Type.json
+    val nj_updatep: 
+        (Nano_Json_Type.json -> Nano_Json_Type.json) -> string list -> Nano_Json_Type.json 
+                    -> Nano_Json_Type.json
+    val nj_convert: 
+        (Nano_Json_Type.json -> 'a) -> string -> Nano_Json_Type.json 
+                    -> 'a list
+    val nj_string_of: 
+        Nano_Json_Type.json 
+                    -> string option  
+    val nj_string_of': 
+        string -> Nano_Json_Type.json -> string
 
-    val nj_integer_of: Nano_Json_Type.json -> int option  
-    val nj_integer_of': int -> Nano_Json_Type.json -> int
-    val nj_real_of: Nano_Json_Type.json -> IEEEReal.decimal_approx option  
-    val nj_real_of': IEEEReal.decimal_approx -> Nano_Json_Type.json -> IEEEReal.decimal_approx
-    val nj_bool_of: Nano_Json_Type.json -> bool option  
-    val nj_bool_of': bool -> Nano_Json_Type.json -> bool
+    val nj_integer_of: 
+        Nano_Json_Type.json -> int option  
+    val nj_integer_of': 
+        int -> Nano_Json_Type.json -> int
+    val nj_real_of: 
+        Nano_Json_Type.json -> IEEEReal.decimal_approx option  
+    val nj_real_of': 
+        IEEEReal.decimal_approx -> Nano_Json_Type.json -> IEEEReal.decimal_approx
+    val nj_bool_of: 
+        Nano_Json_Type.json -> bool option  
+    val nj_bool_of': 
+        bool -> Nano_Json_Type.json -> bool
   end
 
 \<close>
 
 ML_file Nano_JSON_Query.ML
 
-declare [[JSON_string_type=String.literal]]
 
-JSON   \<open>
-{"menu": {
-  "id": "file",
-  "value": "File",
-  "popup": {
-    "menuitem": [
-      {"value": "New", "onclick": "CreateNewDoc()"},
-      {"value": "Open", "onclick": "OpenDoc()"},
-      {"value": "Close", "onclick": "CloseDoc()"}
-    ]
-  }
-}, "flag":true, "number":42}
-\<close> defining example_literal_literal
-
+subsubsection\<open>Isabelle/HOL\<close>
 
 fun nj_filter':: \<open>'a \<Rightarrow> 'a list \<times> ('a, 'b) json \<Rightarrow> ('a list \<times> ('a, 'b) json) list\<close>
   where
@@ -100,6 +122,26 @@ fun nj_update :: \<open>(('a, 'b) json \<Rightarrow> ('a, 'b) json) \<Rightarrow
   | \<open>nj_update _ _ (STRING s) = STRING s\<close>
   | \<open>nj_update _ _ (BOOL b) = BOOL b\<close>
   | \<open>nj_update _ _ NULL = NULL\<close>
+
+
+paragraph\<open>Examples.\<close>
+text\<open>The following illustrates a simple example of the @{term "nj_filter"} function.\<close>
+
+declare [[JSON_string_type=String.literal]]
+
+JSON   \<open>
+{"menu": {
+  "id": "file",
+  "value": "File",
+  "popup": {
+    "menuitem": [
+      {"value": "New", "onclick": "CreateNewDoc()"},
+      {"value": "Open", "onclick": "OpenDoc()"},
+      {"value": "Close", "onclick": "CloseDoc()"}
+    ]
+  }
+}, "flag":true, "number":42}
+\<close> defining example_literal_literal
 
 value \<open>nj_filter (STR ''onclick'') example_literal_literal\<close>
 
