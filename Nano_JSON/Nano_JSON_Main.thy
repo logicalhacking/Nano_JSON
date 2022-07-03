@@ -1,5 +1,5 @@
 (***********************************************************************************
- * Copyright (c) 2019-2021 Achim D. Brucker
+ * Copyright (c) 2019-2022 Achim D. Brucker
  *
  * All rights reserved.
  *
@@ -26,10 +26,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  ***********************************************************************************)
 
-section\<open>Main\<close>
+section\<open>The Main Theory of Nano JSON\<close>
 
-theory Nano_JSON_Main
+theory 
+  Nano_JSON_Main
 imports 
-Nano_JSON_Query
+  Nano_JSON_Query
 begin
+text\<open>
+  This is the main entry point into the @{session "Nano_JSON"} session for users of this 
+  AFP entry.
+\<close>
 end
