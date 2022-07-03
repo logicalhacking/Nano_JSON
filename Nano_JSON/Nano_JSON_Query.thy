@@ -35,11 +35,12 @@ imports
   Nano_JSON
 begin
 text\<open>
-  In this theory, we define various functions for working with JSON data, i.e., the data types 
-  defined in the theory @{theory "Nano_JSON.Nano_JSON"}. These query functions are useful for 
-  building more complex functionality of JSON encoded data. One could think of them as something
-  like jq (\<^url>\<open>https://stedolan.github.io/jq/\<close>) for Isabelle.
-  \<close>
+  In this theory, we define various functions for working with JSON data, i.e.,
+  the data types defined in the theory @{theory "Nano_JSON.Nano_JSON"}. These
+  query functions are useful for building more complex functionality of JSON
+  encoded data. One could think of them as something like jq
+  (\<^url>\<open>https://stedolan.github.io/jq/\<close>) for Isabelle. 
+\<close>
 
 subsubsection\<open>Isabelle/ML\<close>
 ML\<open>

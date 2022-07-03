@@ -35,9 +35,10 @@ imports
 begin
 
 text\<open>
-  In this theory, we illustrate various small examples of importing or exporting of 
-  JSON data from Isabelle/HOL. The examples in this theory make use @{type "real"}. This is 
-  possible, as this theory imports the theory @{theory "Complex_Main"}.
+  In this theory, we illustrate various small examples of importing or exporting
+  of JSON data from Isabelle/HOL. The examples in this theory make use @{type
+  "real"}. This is possible, as this theory imports the theory @{theory
+  "Complex_Main"}.
 \<close>
 
 

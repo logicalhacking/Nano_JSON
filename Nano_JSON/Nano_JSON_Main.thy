@@ -34,7 +34,7 @@ imports
   Nano_JSON_Query
 begin
 text\<open>
-  This is the main entry point into the @{session "Nano_JSON"} session for users of this 
-  AFP entry.
+  This is the main entry point into the @{session "Nano_JSON"} session for users
+  of this AFP entry.
 \<close>
 end
