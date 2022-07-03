@@ -7,6 +7,7 @@ session "Nano_JSON" (AFP) = HOL +
     Nano_JSON
     Nano_JSON_Query
     Nano_JSON_Main
+    Nano_JSON_Manual
     Example
     Example_Real 
   document_files
