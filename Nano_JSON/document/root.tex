@@ -13,7 +13,7 @@
 \usepackage{xcolor}
 \usepackage{listings}
 \usepackage[]{mathtools}
-
+\usepackage{railsetup}
 \usepackage[backend=bibtex,style=trad-abbrv]{biblatex}
 \addbibresource{root.bib}
 
@@ -39,7 +39,7 @@
 \isabellestyle{literal}
 \isabellestyle{tt}
 
-\setcounter{tocdepth}{1}
+\setcounter{tocdepth}{3}
 \newcommand{\ie}{i.\,e.\xspace}
 \newcommand{\eg}{e.\,g.\xspace}
 \newcommand{\thy}{\isabellecontext}
@@ -144,9 +144,18 @@ situations: the provided implementation in Isabelle/ML and its representation in
 Isabelle/HOL have been used successfully in several projects for exchanging data
 sets of several hundredths of megabyte between Isabelle and external tools.
 
+
+In summary, Nano JSON should enable you to work with JSON encoded data in Isabelle/HOL without
+  the need of implementing parsers or serialization in Isabelle/ML. You should be able to implement
+  mapping from the Nano JSON HOL data types to your own data types on the level of Isabelle/HOL (i.e., 
+  as executable HOL functions). Nevertheless, the provided ML routine that converts between the 
+  ML representation and the HOL representation of Nano JSON can also serve as a starting point 
+  for converting the ML representation to your own, domain-specific, HOL encoding. 
+
+
 \begin{figure}
   \centering
-  \includegraphics[height=\textheight, width=\textwidth, keepaspectratio]{session_graph}
+  \includegraphics[height=.45\textheight, width=\textwidth, keepaspectratio]{session_graph}
   \caption{The Dependency Graph of the Isabelle Theories.\label{fig:session-graph}}
 \end{figure}
 The rest of this document is automatically generated from the
@@ -154,12 +163,19 @@ formalization in Isabelle/HOL, i.e., all content is checked by
 Isabelle.  Overall, the structure of this document follows the
 theory dependencies (see \autoref{fig:session-graph}).
 
-\clearpage
-\tableofcontents
+\chapter{Implementation}\label{ch:implementation}
+\input{Nano_JSON.tex}
+\input{Nano_JSON_Query.tex}
+\input{Nano_JSON_Main.tex}
 
-\chapter{Generated Sessions}
+\chapter{User's Guide and Examples}
+\input{Nano_JSON_Manual.tex}
+\input{Example.tex}
+\input{Example_Real.tex}
+
+%\chapter{Generated Sessions}
 % generated text of all theories
-\input{session}
+%\input{session}
 
 \printbibliography
 
