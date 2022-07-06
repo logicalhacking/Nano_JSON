@@ -26,7 +26,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  ***********************************************************************************)
 
-structure Nano_Json_Query:Nano_Json_Query  = struct
+structure Nano_Json_Query:NANO_JSON_QUERY  = struct
 open Nano_Json_Type
 
 

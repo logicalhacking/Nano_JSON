@@ -44,7 +44,7 @@ text\<open>
 
 subsubsection\<open>Isabelle/ML\<close>
 ML\<open>
-signature Nano_Json_Query = sig
+signature NANO_JSON_QUERY = sig
     val nj_filter: 
         string -> Nano_Json_Type.json 
                    -> (string list * Nano_Json_Type.json) list
@@ -95,7 +95,10 @@ signature Nano_Json_Query = sig
 \<close>
 
 ML_file Nano_JSON_Query.ML
-
+text\<open>
+  The file @{file \<open>Nano_JSON_Query.ML\<close>} provides the Isabelle/ML structure
+  @{ML_structure \<open>Nano_Json_Query:NANO_JSON_QUERY\<close>}.
+\<close>
 
 subsubsection\<open>Isabelle/HOL\<close>
 

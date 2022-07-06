@@ -3,6 +3,9 @@
 \usepackage[T1]{fontenc}
 \usepackage[USenglish]{babel}
 \usepackage[varqu,varl]{zi4}% inconsolata typewriter
+% for lualatex
+\usepackage{fontspec}
+\setmonofont{Inconsolatazi4}
 \usepackage[sfdefault,scaled=.85]{FiraSans}
 \usepackage[cmintegrals]{newtxsf}
 \usepackage{csquotes}
@@ -49,9 +52,12 @@
   \section{#1 (\thy)}%
   \endgroup% 
 }
+\let\oldisakeyword\isakeyword
+\renewcommand{\isakeyword}[1]{\oldisakeyword{\color{black!70!white}#1}}
+\renewcommand{\isacommand}[1]{\isakeyword{\color{sectioncolor}#1}}
 
 \title{Nano JSON}
-\subtitle{Working with JSON formatted data in Isabelle/HOL} 
+\subtitle{Working with JSON formatted data in Isabelle/HOL and Isabelle/ML} 
 \author{Achim~D.~Brucker}%
 \publishers{
   Department of Computer Science, University of Exeter, Exeter, UK\texorpdfstring{\\}{, }
@@ -160,17 +166,19 @@ domain-specific, HOL encoding.
   \includegraphics[height=.45\textheight, width=\textwidth, keepaspectratio]{session_graph}
   \caption{The Dependency Graph of the Isabelle Theories.\label{fig:session-graph}}
 \end{figure}
-The rest of this document is automatically generated from the
-formalization in Isabelle/HOL, i.e., all content is checked by
-Isabelle.  Overall, the structure of this document follows the
-theory dependencies (see \autoref{fig:session-graph}).
+The rest of this document is automatically generated from the formalization in Isabelle/HOL, i.e., 
+all content is checked by Isabelle.  Overall, the structure of this document follows the theory 
+dependencies (see \autoref{fig:session-graph}). If you want  to understand the implementation of 
+Nano JSON or want to use its API on the level of Isabelle/ML, you should consult \autoref{ch:implementation}.
+If you are interested in using Nano JSON on the level of Isabelle/HOL or want to explore examples, 
+please consult \autoref{ch:user-guide}.
 
 \chapter{Implementation}\label{ch:implementation}
 \input{Nano_JSON.tex}
 \input{Nano_JSON_Query.tex}
 \input{Nano_JSON_Main.tex}
 
-\chapter{User's Guide and Examples}
+\chapter{User's Guide and Examples}\label{ch:user-guide}
 \input{Nano_JSON_Manual.tex}
 \input{Example.tex}
 \input{Example_Real.tex}

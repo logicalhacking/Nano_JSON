@@ -124,7 +124,16 @@ end
 \<close>
 
 ML_file Nano_JSON_Type.ML
-
+text\<open>
+ The file @{file \<open>Nano_JSON_Type.ML\<close>} provides the Isabelle/ML structure 
+ @{ML_structure \<open>Nano_Json_Type:NANO_JSON_TYPE\<close>}. When first argument of 
+ the functions @{ML \<open>Nano_Json_Type.term_of_real\<close>} and @{ML \<open>Nano_Json_Type.term_of_json\<close>} is 
+ @{ML \<open>true\<close>}, then warnings are reported to the the output window of Isabelle. Otherwise, warning 
+ will be ignored. Furthermore, the two arguments of type @{ML_type \<open>typ\<close>} of the function  
+ @{ML \<open>Nano_Json_Type.term_of_json\<close>} represent the HOL target type for JSON strings and numerical 
+ values. An example invocation of this function looks as follows:
+\<close>
+ML\<open>Nano_Json_Type.term_of_json false @{typ "string"} @{typ \<open>int\<close>} Nano_Json_Type.NULL\<close>
 
 subsection\<open>Parsing Nano JSON\<close>
 
@@ -205,9 +214,12 @@ signature NANO_JSON_LEXER = sig
 end
 \<close>
 ML_file Nano_JSON_Lexer.ML
-
-paragraph\<open>Parser.\<close>
-text\<open>The following Isabelle/ML signatures captures the parser:\<close>
+text\<open>
+ The file @{file \<open>Nano_JSON_Lexer.ML\<close>} provides the Isabelle/ML structure 
+ @{ML_structure \<open>Nano_Json_Lexer:NANO_JSON_LEXER\<close>}. It provides the  
+ function @{ML \<open>Nano_Json_Lexer.tokenize_string\<close>} which, as the name suggests, 
+ tokenizes a string (containing a JSON object).
+\<close>  
 
 ML\<open>
 
@@ -220,8 +232,17 @@ end
 \<close>
 
 ML_file "Nano_JSON_Parser.ML"
-
 text\<open>
+  The file @{file \<open>Nano_JSON_Parser.ML\<close>} provides the Isabelle/ML structure 
+  @{ML_structure \<open>Nano_Json_Parser:NANO_JSON_PARSER\<close>}. The two main functions:
+ 
+  \<^item> First, @{ML \<open>Nano_Json_Parser.json_of_string\<close>} parsing a string (containing a JSON object)
+    and returning its abstract syntax (i.e., an instance of the type @{ML_type \<open>Nano_Json_Type.json\<close>}.
+  \<^item> Second, @{ML \<open>Nano_Json_Parser.term_of_json_string\<close>}, which parses a string into a HOL term. 
+    As for @{ML \<open>Nano_Json_Type.term_of_json\<close>}, the first argument decides if warnings are printed
+    and the next wo arguments determine the HOL type representations for JSON strings and numerical
+    values.
+
   The parser ML\<open>Nano_Json_Parser.term_of_json_string\<close> can now be used, on the Isabelle/ML-level
   as follows:
 \<close>
@@ -413,7 +434,13 @@ end
 \<close>
 
 ML_file "Nano_JSON_Serializer.ML"
-
+text\<open>
+  The file @{file \<open>Nano_JSON_Serializer.ML\<close>} provides the Isabelle/ML structure
+  @{ML_structure \<open>Nano_Json_Serializer:NANO_JSON_SERIALIZER\<close>}. It provides
+  functions for serializing JSON data from it abstract syntax as well as from 
+  its HOL term representations. Moreover, variants are provided that try to 
+  pretty print the output with the goal of making it easier to read for humans.
+\<close>
 subsubsection\<open>Isar Setup\<close>
 ML\<open>
 structure Nano_Json_Serialize_Isar = struct
