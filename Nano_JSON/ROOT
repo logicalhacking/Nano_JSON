@@ -13,3 +13,4 @@ session "Nano_JSON" (AFP) = HOL +
   document_files
     "root.tex"
     "root.bib"
+    "orcidlink.sty"
