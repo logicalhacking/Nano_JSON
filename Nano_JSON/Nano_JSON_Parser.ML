@@ -138,29 +138,28 @@ structure Nano_Json_Parser : NANO_JSON_PARSER  = struct
     fun term_of_json_string verbose strT numT = (term_of_json verbose strT numT) o json_of_string
 
     fun checkReal thy = SOME (Thm.global_ctyp_of thy  HOLogic.realT)
-                                                handle _ => NONE 
+                        handle ERROR _  => NONE (* Undeclared type constructor: "Real.real" *) 
 
- fun numT thy = case Config.get_global thy json_num_type of 
-                 "int" => @{typ \<open>int\<close>} 
-               | "nat" => @{typ \<open>nat\<close>} 
-               | "real" =>  ( case checkReal thy of 
-                              SOME _ => HOLogic.realT
-                              |NONE => error ("Using 'real' requires the import of the theory 'Main_Complex' ('Real')."))
-               | "string" =>  @{typ \<open>string\<close>} 
-               | "String.literal" => @{typ \<open>String.literal\<close>}
-               | "" => ( case checkReal thy of 
-                              SOME _ => HOLogic.realT
-                              |NONE => @{typ \<open>int\<close>})
+    fun numT thy = case Config.get_global thy json_num_type of 
+                     "int"  => @{typ \<open>int\<close>} 
+                   | "nat"  => @{typ \<open>nat\<close>} 
+                   | "real" =>  ( case checkReal thy of 
+                                    SOME _ => HOLogic.realT
+                                  | NONE   => error ("Using 'real' requires the import of the theory 'Main_Complex' ('Real')."))
+                   | "string" =>  @{typ \<open>string\<close>} 
+                   | "String.literal" => @{typ \<open>String.literal\<close>}
+                   | "" => ( case checkReal thy of 
+                               SOME _ => HOLogic.realT
+                             | NONE   => @{typ \<open>int\<close>})
                | _ => error (String.concat ["Only 'nat', 'int', 'real', 'string', and 'String.literal' are supported for numbers, got '",
                                             Config.get_global thy json_num_type, "'"]) 
 
-fun stringT thy = case Config.get_global thy json_string_type of 
-                 "" => @{typ \<open>string\<close>}
-               | "string" =>  @{typ \<open>string\<close>} 
-               | "String.literal" => @{typ \<open>String.literal\<close>}
-               | _ => error (String.concat ["Only 'string' and 'String.literal' are supported for strings, got '",
+    fun stringT thy = case Config.get_global thy json_string_type of 
+                        "" => @{typ \<open>string\<close>}
+                      | "string" =>  @{typ \<open>string\<close>} 
+                      | "String.literal" => @{typ \<open>String.literal\<close>}
+                      | _ => error (String.concat ["Only 'string' and 'String.literal' are supported for strings, got '",
                                             Config.get_global thy json_string_type, "'"]) 
-
 
 end
 

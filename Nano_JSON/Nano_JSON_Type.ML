@@ -156,7 +156,7 @@ fun string_of_typ (Type (s, _))     = s
 
     fun json_of_term t = let
         fun dest_key_value [string, json] = ((HOLogic.dest_string string, json_of json)
-                                           handle _ => (HOLogic.dest_literal string, json_of json))
+                                            handle TERM _ => (HOLogic.dest_literal string, json_of json))
           | dest_key_value _              = error "dest_key_value: not a key-value pair." 
         and json_of (Const(@{const_name "OBJECT"}, _) $ l) = OBJECT (map (dest_key_value o HOLogic.strip_tuple) (HOLogic.dest_list l))
           | json_of (Const(@{const_name "ARRAY"}, _)  $ l) = ARRAY (map json_of (HOLogic.dest_list l))
