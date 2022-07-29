@@ -69,7 +69,9 @@ structure Nano_Json_Type : NANO_JSON_TYPE = struct
     fun divide_classC realT = Const(@{const_name Rings.divide_class.divide} , mk_funT [realT, mk_funT [realT, realT]])
     fun mk_divide realT t1 t2 = (divide_classC realT) $ t1 $ t2
     fun mk_real_num realT i = HOLogic.mk_number realT i
-    fun mk_real realT (p,q) = if q = 1 then mk_real_num realT p else mk_divide realT (mk_real_num realT p) (mk_real_num realT q)
+    fun mk_real realT (p,q) = if q = 1 then mk_real_num realT p 
+                                       else if (p = 0 andalso q = 0) then mk_real_num realT 0  
+                                            else mk_divide realT (mk_real_num realT p) (mk_real_num realT q)
     fun term_of_real verbose  r = (mk_real HOLogic.realT (ieee_real_to_rat_approx verbose r))
 
     fun dest_real (Const(@{const_name Rings.divide_class.divide} , _)$a$b) = 
