@@ -40,17 +40,25 @@ structure Nano_Json_Type : NANO_JSON_TYPE = struct
            val _ = if verbose 
                    then warning ("Conversion of real numbers is not JSON compliant.") 
                    else ()
-           fun pow (_, 0) = 1  
-             | pow (x, n) = if n mod 2 = 0 then pow (x*x, n div 2)  
-                                           else x * pow (x*x, n div 2); 
+           fun pow (a,b) = Integer.pow b a
            fun rat_of_dec rat = let
                  val sign = #sign rat
                  val digits = #digits rat
                  val exp = #exp rat
                  fun numerator_of _ [] = 0
                    | numerator_of c (x::xs) = x*pow(10,c) + (numerator_of (c+1) xs)
-                 val numerator_abs = numerator_of 0 (rev digits)
-                 val denominator = pow(10, (List.length digits - exp))  
+                val numerator_abs = let 
+                                       val num = numerator_of 0 (rev digits)
+                                    in                                        
+                                      if (List.length digits - exp) < 0 
+                                      then pow(10,abs(List.length digits - exp))*num
+                                      else num
+                                    end
+                           
+                 val denominator = if (List.length digits - exp) < 0
+                                   then 1 
+                                   else pow(10, (List.length digits - exp))  
+ 
                in
                  (if sign then ~ numerator_abs else numerator_abs, denominator)
                end
